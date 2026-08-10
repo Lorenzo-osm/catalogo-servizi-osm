@@ -2087,12 +2087,7 @@ function styleAreaPartner(areaId) {
 function tooltipAreaHtml(areaId) {
   const area = (ls(KEYS.aree) || []).find(a => a.id === areaId);
   if (!area) return '';
-  const ids = partnerIdsPerArea(areaId);
-  const partnerList = (ls(KEYS.partner) || []).filter(p => ids.has(p.id));
-  const corpo = partnerList.length
-    ? partnerList.map(rigaPartnerTooltip).join('')
-    : '<br><span style="opacity:0.7;">Nessun partner assegnato</span>';
-  return `<strong>${escHtml(area.nome)}</strong>${corpo}`;
+  return `<strong>${escHtml(area.nome)}</strong>`;
 }
 
 function refreshMappaPartnerStili() {
