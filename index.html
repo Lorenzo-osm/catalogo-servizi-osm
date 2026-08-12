@@ -528,8 +528,21 @@ textarea.form-input { resize: vertical; }
 .modal {
   background: #fff; border-radius: 18px; padding: 30px 28px;
   width: 100%; max-width: 440px;
+  max-height: calc(100vh - 48px); overflow-y: auto;
   box-shadow: 0 12px 40px rgba(42,17,34,0.18);
   transform: translateY(18px); transition: transform 0.22s;
+}
+.testo-toolbar { display: flex; gap: 6px; margin-bottom: 8px; }
+.testo-toolbar button {
+  background: var(--card-bg, #f5eef2); border: 1px solid var(--card-border, #e2d3dc);
+  border-radius: 6px; padding: 4px 11px; font-size: 0.82rem; cursor: pointer; color: var(--testo, #2a1122);
+}
+.testo-toolbar button:hover { background: var(--rosa-light, #f0dce8); }
+.testo-toolbar button.b { font-weight: 800; }
+.testo-toolbar button.i { font-style: italic; }
+.testo-anteprima {
+  font-size: 0.85rem; color: var(--testo-muted); line-height: 1.5; white-space: pre-wrap;
+  border: 1px dashed var(--card-border, #e2d3dc); border-radius: 8px; padding: 10px 12px; margin-top: 8px;
 }
 .modal-overlay.show .modal { transform: translateY(0); }
 .modal-title { font-size: 1.05rem; font-weight: 800; color: var(--testo); margin-bottom: 10px; }
@@ -825,7 +838,12 @@ textarea.form-input { resize: vertical; }
         </div>
         <div class="form-group">
           <label class="form-label">Descrizione breve</label>
-          <textarea id="serv-desc" class="form-input" rows="3" placeholder="Breve descrizione del servizio..."></textarea>
+          <div class="testo-toolbar">
+            <button type="button" class="b" onclick="applicaFormatoTesto('serv-desc','**')" title="Grassetto sul testo selezionato">B</button>
+            <button type="button" class="i" onclick="applicaFormatoTesto('serv-desc','*')" title="Corsivo sul testo selezionato">I</button>
+          </div>
+          <textarea id="serv-desc" class="form-input" rows="3" placeholder="Breve descrizione del servizio..." oninput="aggiornaAnteprimaTesto('serv-desc')"></textarea>
+          <div class="testo-anteprima" id="serv-desc-preview">-</div>
         </div>
         <div class="form-group">
           <label class="form-label">Informazioni dettagliate &mdash; visibili nella scheda del servizio</label>
@@ -1005,10 +1023,16 @@ textarea.form-input { resize: vertical; }
     <div class="modal-msg" id="scheda-dettaglio-view" style="white-space:pre-wrap;margin-bottom:18px;">-</div>
     <div id="scheda-dettaglio-edit" style="display:none;">
       <div class="alert alert-success" id="alert-scheda-ok"></div>
-      <div class="form-group">
-        <textarea id="scheda-dettaglio-textarea" class="form-input" rows="6" placeholder="Inserisci qui le informazioni dettagliate del servizio..."></textarea>
+      <div class="testo-toolbar">
+        <button type="button" class="b" onclick="applicaFormatoTesto('scheda-dettaglio-textarea','**')" title="Grassetto sul testo selezionato">B</button>
+        <button type="button" class="i" onclick="applicaFormatoTesto('scheda-dettaglio-textarea','*')" title="Corsivo sul testo selezionato">I</button>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="salvaDettaglioScheda()">Salva informazioni</button>
+      <div class="form-group">
+        <textarea id="scheda-dettaglio-textarea" class="form-input" rows="6" placeholder="Inserisci qui le informazioni dettagliate del servizio..." oninput="aggiornaAnteprimaTesto('scheda-dettaglio-textarea')"></textarea>
+      </div>
+      <div class="form-label" style="margin-bottom:4px;">Anteprima</div>
+      <div class="testo-anteprima" id="scheda-dettaglio-textarea-preview">-</div>
+      <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="salvaDettaglioScheda()">Salva informazioni</button>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline btn-sm" onclick="chiudiSchedaServizio()">Chiudi</button>
@@ -1407,7 +1431,7 @@ function renderServiziVerticale(vert, isAdmin) {
         ${chkHtml}
         <div class="servizio-name">${escHtml(s.nome)}</div>
       </div>
-      <div class="servizio-desc">${escHtml(s.descrizione)}</div>
+      <div class="servizio-desc">${formattaTestoServizio(s.descrizione)}</div>
       <div class="servizio-footer">
         <div class="servizio-prezzo">&#8364;&nbsp;${formatEuro(s.prezzo)}</div>
         ${provHtml}
@@ -1473,7 +1497,7 @@ function stampaSelezione() {
       ${scelti.map(s => `
         <div class="print-servizio-card">
           <div class="print-servizio-name">${escHtml(s.nome)}</div>
-          <div class="print-servizio-desc">${escHtml(s.descrizione)}</div>
+          <div class="print-servizio-desc">${formattaTestoServizio(s.descrizione)}</div>
           <div class="print-servizio-prezzo">&#8364; ${formatEuro(s.prezzo)}</div>
         </div>`).join('')}
     </div>
@@ -1688,6 +1712,7 @@ function startEditServizio(vertId, idx) {
   document.getElementById('serv-osmanage').value  = s.osmanage || '';
   document.getElementById('serv-tipo').value      = tipo;
   document.getElementById('serv-desc').value      = s.descrizione;
+  aggiornaAnteprimaTesto('serv-desc');
   document.getElementById('serv-dettaglio').value = s.dettaglio || '';
   document.getElementById('serv-prezzo').value    = s.prezzo;
   document.getElementById('serv-vss').value       = s.vss;
@@ -1725,6 +1750,7 @@ function clearServizioForm() {
     .forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('serv-tipo').value = 'standard';
   toggleTipoServizioFields();
+  aggiornaAnteprimaTesto('serv-desc');
 }
 
 function deleteServizioPrompt(vertId, idx) {
@@ -1875,6 +1901,40 @@ function provvigioniMetaHtml(s) {
 }
 
 // =========================================================
+// FORMATTAZIONE TESTO — grassetto/corsivo scelti dall'utente
+// =========================================================
+// Sintassi semplice: **testo** = grassetto, *testo* = corsivo (come WhatsApp).
+// Il testo viene sempre "escapato" prima di applicare i marcatori, quindi resta sicuro.
+function formattaTestoServizio(testo) {
+  if (!testo) return '';
+  let html = escHtml(testo);
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  return html;
+}
+
+// Avvolge il testo selezionato nella textarea con il marcatore scelto (** o *)
+function applicaFormatoTesto(textareaId, marcatore) {
+  const ta = document.getElementById(textareaId);
+  if (!ta) return;
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  const testo = ta.value;
+  const selezionato = testo.slice(start, end) || 'testo';
+  ta.value = testo.slice(0, start) + marcatore + selezionato + marcatore + testo.slice(end);
+  ta.focus();
+  ta.selectionStart = start + marcatore.length;
+  ta.selectionEnd = start + marcatore.length + selezionato.length;
+  aggiornaAnteprimaTesto(textareaId);
+}
+
+function aggiornaAnteprimaTesto(textareaId) {
+  const ta = document.getElementById(textareaId);
+  const preview = document.getElementById(textareaId + '-preview');
+  if (!ta || !preview) return;
+  preview.innerHTML = formattaTestoServizio(ta.value) || '<span style="opacity:0.6;">L\'anteprima comparirà qui mentre scrivi&hellip;</span>';
+}
+
+// =========================================================
 // SCHEDA DETTAGLIO SERVIZIO
 // =========================================================
 let schedaCorrente = null; // { vertId, idx }
@@ -1892,7 +1952,7 @@ function apriSchedaServizio(vertId, idx) {
   document.getElementById('scheda-osmanage').textContent = s.osmanage ? `Voce OSMANAGE: ${s.osmanage}` : '';
   document.getElementById('scheda-tipo').textContent    = tipoServizioLabel(s.tipo);
   document.getElementById('scheda-prezzo').textContent  = '€ ' + formatEuro(s.prezzo);
-  document.getElementById('scheda-desc').textContent    = s.descrizione;
+  document.getElementById('scheda-desc').innerHTML      = formattaTestoServizio(s.descrizione);
 
   const provWrap = document.getElementById('scheda-prov-wrap');
   if (isAdmin) {
@@ -1909,12 +1969,13 @@ function apriSchedaServizio(vertId, idx) {
     viewBox.style.display = 'none';
     editBox.style.display = 'block';
     document.getElementById('scheda-dettaglio-textarea').value = s.dettaglio || '';
+    aggiornaAnteprimaTesto('scheda-dettaglio-textarea');
     hideAlerts([document.getElementById('alert-scheda-ok')]);
   } else {
     editBox.style.display = 'none';
     viewBox.style.display = 'block';
-    viewBox.textContent = s.dettaglio && s.dettaglio.trim()
-      ? s.dettaglio
+    viewBox.innerHTML = s.dettaglio && s.dettaglio.trim()
+      ? formattaTestoServizio(s.dettaglio)
       : 'Nessuna informazione aggiuntiva disponibile al momento.';
   }
 
