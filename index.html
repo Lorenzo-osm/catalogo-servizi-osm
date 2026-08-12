@@ -847,7 +847,12 @@ textarea.form-input { resize: vertical; }
         </div>
         <div class="form-group">
           <label class="form-label">Informazioni dettagliate &mdash; visibili nella scheda del servizio</label>
-          <textarea id="serv-dettaglio" class="form-input" rows="5" placeholder="Informazioni complete, programma, condizioni, dettagli operativi..."></textarea>
+          <div class="testo-toolbar">
+            <button type="button" class="b" onclick="applicaFormatoTesto('serv-dettaglio','**')" title="Grassetto sul testo selezionato">B</button>
+            <button type="button" class="i" onclick="applicaFormatoTesto('serv-dettaglio','*')" title="Corsivo sul testo selezionato">I</button>
+          </div>
+          <textarea id="serv-dettaglio" class="form-input" rows="5" placeholder="Informazioni complete, programma, condizioni, dettagli operativi..." oninput="aggiornaAnteprimaTesto('serv-dettaglio')"></textarea>
+          <div class="testo-anteprima" id="serv-dettaglio-preview">-</div>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -1714,6 +1719,7 @@ function startEditServizio(vertId, idx) {
   document.getElementById('serv-desc').value      = s.descrizione;
   aggiornaAnteprimaTesto('serv-desc');
   document.getElementById('serv-dettaglio').value = s.dettaglio || '';
+  aggiornaAnteprimaTesto('serv-dettaglio');
   document.getElementById('serv-prezzo').value    = s.prezzo;
   document.getElementById('serv-vss').value       = s.vss;
   document.getElementById('serv-vsd-junior').value      = tipo === 'standard' ? s.vsdJunior : '';
@@ -1751,6 +1757,7 @@ function clearServizioForm() {
   document.getElementById('serv-tipo').value = 'standard';
   toggleTipoServizioFields();
   aggiornaAnteprimaTesto('serv-desc');
+  aggiornaAnteprimaTesto('serv-dettaglio');
 }
 
 function deleteServizioPrompt(vertId, idx) {
