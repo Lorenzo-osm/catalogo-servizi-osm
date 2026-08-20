@@ -57,7 +57,7 @@ body {
   .print-servizi { display: grid; grid-template-columns: 1fr 1fr; gap: 12pt; margin-top: 20pt; }
   .print-servizio-card { border: 1pt solid #eee0ea; border-radius: 6pt; padding: 12pt; break-inside: avoid; }
   .print-servizio-name { font-size: 11pt; font-weight: 800; color: #2a1122; margin-bottom: 6pt; }
-  .print-servizio-desc { font-size: 9pt; color: #555; margin-bottom: 10pt; line-height: 1.5; }
+  .print-servizio-desc { font-size: 9pt; color: #555; margin-bottom: 10pt; line-height: 1.5; white-space: pre-wrap; }
   .print-servizio-prezzo { font-size: 13pt; font-weight: 800; color: #8a3570; }
   .print-footer { margin-top: 24pt; font-size: 8pt; color: #aaa; border-top: 1pt solid #eee; padding-top: 8pt; }
 }
@@ -472,7 +472,7 @@ textarea.form-input { resize: vertical; }
 .servizio-name { font-size: 0.98rem; font-weight: 700; color: var(--testo); line-height: 1.35; }
 .servizio-desc {
   font-size: 0.82rem; color: var(--testo-muted); line-height: 1.55;
-  margin-bottom: 16px; flex: 1;
+  margin-bottom: 16px; flex: 1; white-space: pre-wrap;
 }
 .servizio-footer {
   display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
@@ -798,6 +798,70 @@ textarea.form-input { resize: vertical; }
 .btn-icon.toggle-off { border-color: #ccc; color: #bbb; }
 .btn-icon.toggle-on  { border-color: var(--fucsia-border); color: var(--fucsia); background: var(--fucsia-light); }
 
+/* ===== DRAG & DROP / ORDINE ===== */
+.drag-handle {
+  cursor: grab; color: var(--testo-muted); font-size: 1.2rem;
+  padding: 0 8px; flex-shrink: 0; user-select: none;
+  display: flex; align-items: center; line-height: 1; touch-action: none;
+}
+.drag-handle:active { cursor: grabbing; }
+.sortable-item.drag-over {
+  border-color: var(--fucsia) !important;
+  background: var(--fucsia-light) !important;
+  box-shadow: 0 0 0 2px var(--fucsia-border);
+}
+.sortable-item.dragging { opacity: 0.38; }
+.sortable-services-container { min-height: 8px; transition: background 0.15s; border-radius: 6px; }
+.sortable-services-container.drag-target { background: var(--fucsia-light); outline: 2px dashed var(--fucsia-border); }
+
+/* ===== SOTTOCATEGORIE / STRUTTURA ===== */
+.sottocat-section { margin-bottom: 28px; }
+.sottocat-section-title {
+  font-size: 0.78rem; font-weight: 800; color: var(--page-primary-dark);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  padding: 8px 0 10px; margin-bottom: 14px;
+  border-bottom: 2px solid var(--page-primary-border);
+  display: flex; align-items: center; gap: 8px;
+}
+.sottocat-section-title::before {
+  content: ''; width: 4px; height: 16px;
+  background: var(--page-primary); border-radius: 2px; flex-shrink: 0;
+}
+.sottocat-admin-row {
+  background: var(--bg-soft); border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 10px 14px;
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.sottocat-admin-row-name { flex: 1; font-size: 0.88rem; font-weight: 600; color: var(--testo); }
+.sottocat-admin-row-count { font-size: 0.72rem; color: var(--testo-muted); font-weight: 600; }
+.ordine-vert-row {
+  background: var(--bg-soft); border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px; margin-bottom: 6px;
+}
+.ordine-vert-logo {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid var(--fucsia-border); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--fucsia-light); flex-shrink: 0;
+}
+.ordine-vert-logo img { max-width: 28px; max-height: 28px; object-fit: contain; }
+.ordine-vert-nome { flex: 1; font-size: 0.88rem; font-weight: 700; color: var(--testo); }
+.admin-sottocat-group-header {
+  font-size: 0.72rem; font-weight: 800; color: var(--fucsia-dark);
+  text-transform: uppercase; letter-spacing: 0.07em;
+  padding: 10px 4px 6px; margin-top: 8px;
+  border-top: 1px solid var(--card-border);
+  display: flex; align-items: center; gap: 6px;
+}
+.admin-sottocat-group-header:first-of-type { border-top: none; margin-top: 0; padding-top: 4px; }
+.sottocat-badge {
+  display: inline-flex; align-items: center; padding: 2px 9px;
+  background: var(--fucsia-light); color: var(--fucsia-dark);
+  border: 1px solid var(--fucsia-border); border-radius: 20px;
+  font-size: 0.65rem; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 680px) {
   .navbar { padding: 0 14px; gap: 5px; }
@@ -1033,6 +1097,7 @@ textarea.form-input { resize: vertical; }
     <div class="admin-tabs">
       <button class="admin-tab active" data-tab="consulenti" onclick="switchAdminTab('consulenti')">Gestione Consulenti</button>
       <button class="admin-tab" data-tab="servizi" onclick="switchAdminTab('servizi')">Gestione Servizi</button>
+      <button class="admin-tab" data-tab="struttura" onclick="switchAdminTab('struttura')">Ordine &amp; Struttura</button>
       <button class="admin-tab" data-tab="visibilita" onclick="switchAdminTab('visibilita')">Visibilit&#224; Catalogo</button>
       <button class="admin-tab" data-tab="aree" onclick="switchAdminTab('aree')">Aree Territoriali</button>
       <button class="admin-tab" data-tab="territorio" onclick="switchAdminTab('territorio')">Territorio Partner</button>
@@ -1110,6 +1175,12 @@ textarea.form-input { resize: vertical; }
             <option value="scuola">Scuola di formazione</option>
           </select>
         </div>
+        <div class="form-group" id="grp-sottocat">
+          <label class="form-label">Sottocategoria (opzionale)</label>
+          <select class="form-select" id="serv-sottocat">
+            <option value="">&#8212; Nessuna sottocategoria &#8212;</option>
+          </select>
+        </div>
         <div class="form-group">
           <label class="form-label">Descrizione breve</label>
           <div class="testo-toolbar">
@@ -1157,6 +1228,33 @@ textarea.form-input { resize: vertical; }
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button class="btn btn-primary btn-sm" onclick="saveServizio()">Salva servizio</button>
           <button class="btn btn-outline btn-sm" id="cancel-edit-btn" onclick="cancelEditServizio()" style="display:none;">Annulla</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB ORDINE & STRUTTURA -->
+    <div class="admin-section" id="admin-tab-struttura">
+      <div class="card-panel">
+        <div class="card-panel-title">Ordine Verticali</div>
+        <p style="font-size:0.82rem;color:var(--testo-muted);margin-bottom:16px;">Trascina le righe per cambiare l'ordine di visualizzazione delle card nella home. Su tablet usa il tocco sul simbolo <strong>&#8801;</strong> per trascinare.</p>
+        <div id="ordine-verticali-list"></div>
+      </div>
+      <div class="card-panel">
+        <div class="card-panel-title">Sottocategorie Servizi</div>
+        <p style="font-size:0.82rem;color:var(--testo-muted);margin-bottom:14px;">Crea sottocategorie per raggruppare i servizi all'interno di una verticale. Dopo averle create, assegna ogni servizio a una sottocategoria nel pannello Gestione Servizi. Le sottocategorie sono anch'esse riordinabili per trascinamento.</p>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label">Seleziona verticale</label>
+          <select class="form-select" id="admin-sottocat-verticale-select" onchange="renderAdminSottocategorie()"></select>
+        </div>
+        <div id="sottocategorie-admin-list" style="margin-bottom:12px;"></div>
+        <div class="alert alert-error" id="alert-sottocat-err"></div>
+        <div class="alert alert-success" id="alert-sottocat-ok"></div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="form-group" style="flex:1;min-width:180px;margin-bottom:0;">
+            <label class="form-label">Nome nuova sottocategoria</label>
+            <input type="text" id="new-sottocat-nome" class="form-input" placeholder="es. Formazione, Consulenza, Strumenti...">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="addSottocategoria()" style="flex-shrink:0;">+ Aggiungi</button>
         </div>
       </div>
     </div>
@@ -1315,7 +1413,7 @@ textarea.form-input { resize: vertical; }
     </div>
     <div class="divider"></div>
     <div class="form-label" style="margin-bottom:6px;">Descrizione</div>
-    <div class="modal-msg" id="scheda-desc" style="margin-bottom:18px;">-</div>
+    <div class="modal-msg" id="scheda-desc" style="white-space:pre-wrap;margin-bottom:18px;">-</div>
     <div class="form-label" style="margin-bottom:6px;">Informazioni dettagliate</div>
     <div class="modal-msg" id="scheda-dettaglio-view" style="white-space:pre-wrap;margin-bottom:18px;">-</div>
     <div id="scheda-dettaglio-edit" style="display:none;">
@@ -1393,14 +1491,16 @@ textarea.form-input { resize: vertical; }
 // COSTANTI & DATI
 // =========================================================
 const KEYS = {
-  admin:        'osm_catalogo_admin',
-  consulenti:   'osm_catalogo_consulenti',
-  servizi:      'osm_catalogo_servizi',
-  session:      'osm_catalogo_session',
-  partner:      'osm_catalogo_partner',
-  aree:         'osm_catalogo_aree',
-  organigramma: 'osm_catalogo_organigramma',
-  visibilita:   'osm_catalogo_visibilita'
+  admin:           'osm_catalogo_admin',
+  consulenti:      'osm_catalogo_consulenti',
+  servizi:         'osm_catalogo_servizi',
+  session:         'osm_catalogo_session',
+  partner:         'osm_catalogo_partner',
+  aree:            'osm_catalogo_aree',
+  organigramma:    'osm_catalogo_organigramma',
+  visibilita:      'osm_catalogo_visibilita',
+  ordineVerticali: 'osm_catalogo_ordine_verticali',
+  sottocategorie:  'osm_catalogo_sottocategorie'
 };
 
 // Specializzazioni suggerite nell'organigramma (derivate dalle verticali del catalogo)
@@ -1579,6 +1679,12 @@ function initStorage() {
   if (!ls(KEYS.visibilita)) {
     save(KEYS.visibilita, {});
   }
+  if (!ls(KEYS.ordineVerticali)) {
+    save(KEYS.ordineVerticali, VERTICALI.map(v => v.id));
+  }
+  if (!ls(KEYS.sottocategorie)) {
+    save(KEYS.sottocategorie, {});
+  }
 }
 
 // =========================================================
@@ -1652,6 +1758,8 @@ function goAdmin() {
   renderAdminServizi();
   renderAdminAree();
   renderAdminPartner();
+  // Popola il select sottocategorie nel tab Struttura (senza renderizzare ancora)
+  popolaSottocatVerticaleSelect();
 }
 
 function goVerticale(vertId) {
@@ -1707,7 +1815,14 @@ function renderHome() {
   const sess    = ssGet(KEYS.session);
   const isAdmin = sess && sess.ruolo === 'admin';
 
-  VERTICALI.forEach(vert => {
+  const ordineVerts = ls(KEYS.ordineVerticali) || VERTICALI.map(v => v.id);
+  const verticaliOrdinati = [...VERTICALI].sort((a, b) => {
+    const ia = ordineVerts.indexOf(a.id);
+    const ib = ordineVerts.indexOf(b.id);
+    return (ia < 0 ? 9999 : ia) - (ib < 0 ? 9999 : ib);
+  });
+
+  verticaliOrdinati.forEach(vert => {
     const nascosta = visibilita[vert.id] === true;
 
     // I consulenti non vedono le verticali oscurate
@@ -1750,9 +1865,10 @@ function renderHome() {
 function renderServiziVerticale(vert, isAdmin) {
   const serviziAll = ls(KEYS.servizi) || {};
   const tuttiServizi = serviziAll[vert.id] || [];
+  const sottocatAll = ls(KEYS.sottocategorie) || {};
+  const sottocats = sottocatAll[vert.id] || [];
 
   // I consulenti vedono solo i servizi non oscurati
-  // L'admin vede tutto, ma con indicatori visivi
   const serviziVisibili = isAdmin
     ? tuttiServizi
     : tuttiServizi.filter(s => !s.nascosto);
@@ -1777,29 +1893,18 @@ function renderServiziVerticale(vert, isAdmin) {
     return;
   }
 
-  const grid = document.createElement('div');
-  grid.className = 'servizi-grid';
-
-  // Per i consulenti usiamo serviziVisibili con indice progressivo per la stampa
-  // Per l'admin usiamo tuttiServizi con indice originale (necessario per edit/delete)
-  const listaRender = isAdmin ? tuttiServizi : serviziVisibili;
-
-  listaRender.forEach((s, renderIdx) => {
-    // L'indice reale nel dataset (per admin = renderIdx, per consulente non serve l'idx reale)
-    // Per admin, renderIdx corrisponde all'indice reale in tuttiServizi
-    const realIdx = isAdmin ? renderIdx : tuttiServizi.indexOf(s);
-
+  // Funzione helper: crea una card servizio
+  function creaCardServizio(s, checkboxIdx) {
+    const realIdx = tuttiServizi.indexOf(s);
     const card = document.createElement('div');
     const nascontoClass = (isAdmin && s.nascosto) ? ' nascosto-admin' : '';
     card.className = 'servizio-card' + nascontoClass;
-    card.id = `sc-${renderIdx}`;
+    card.id = `sc-${realIdx}`;
 
-    // Badge nascosto per admin
     const badgeNascosto = (isAdmin && s.nascosto)
       ? `<span class="badge-nascosto" style="margin-bottom:8px;display:inline-flex;">&#9888; Nascosto ai consulenti</span>`
       : '';
 
-    // Pulsanti admin: edit, delete + toggle oscura
     const adminBtns = isAdmin ? `
       <div class="servizio-admin-btns">
         <button class="btn-icon ${s.nascosto ? 'toggle-on' : 'toggle-off'}" title="${s.nascosto ? 'Rendi visibile' : 'Oscura ai consulenti'}" onclick="event.stopPropagation();toggleVisibilitaServizio('${escAttr(vert.id)}',${realIdx})">${s.nascosto ? '&#128065;' : '&#128683;'}</button>
@@ -1807,12 +1912,10 @@ function renderServiziVerticale(vert, isAdmin) {
         <button class="btn-icon danger" title="Elimina" onclick="event.stopPropagation();deleteServizioPrompt('${escAttr(vert.id)}',${realIdx})">&#10005;</button>
       </div>` : '';
 
-    // Checkbox per consulenti — usa data-real-idx per la stampa
     const chkHtml = !isAdmin
-      ? `<input type="checkbox" class="servizio-checkbox" id="chk-${renderIdx}" data-real-idx="${realIdx}" onchange="updatePrintBar()" onclick="event.stopPropagation()">`
+      ? `<input type="checkbox" class="servizio-checkbox" id="chk-${checkboxIdx}" data-real-idx="${realIdx}" onchange="updatePrintBar()" onclick="event.stopPropagation()">`
       : '';
 
-    // Provvigioni: visibili a chiunque acceda a questa pagina (admin e consulenti, entrambi loggati)
     const provHtml = provvigioniHtml(s);
 
     card.innerHTML = `
@@ -1829,10 +1932,65 @@ function renderServiziVerticale(vert, isAdmin) {
       </div>`;
     card.style.cursor = 'pointer';
     card.addEventListener('click', () => apriSchedaServizio(vert.id, realIdx));
-    grid.appendChild(card);
-  });
+    return card;
+  }
 
-  container.appendChild(grid);
+  // Funzione helper: crea una griglia con la lista di servizi data
+  function creaGriglia(lista, startCheckboxIdx) {
+    const grid = document.createElement('div');
+    grid.className = 'servizi-grid';
+    lista.forEach((s, i) => {
+      grid.appendChild(creaCardServizio(s, startCheckboxIdx + i));
+    });
+    return grid;
+  }
+
+  let checkboxOffset = 0;
+
+  if (sottocats.length > 0) {
+    // Render raggruppato per sottocategoria
+    let hasRenderedAGroup = false;
+
+    sottocats.forEach(sc => {
+      const scServizi = serviziVisibili.filter(s => s.sottocategoriaId === sc.id);
+      if (scServizi.length === 0) return; // non mostrare gruppi vuoti
+      hasRenderedAGroup = true;
+
+      const section = document.createElement('div');
+      section.className = 'sottocat-section';
+      const titleEl = document.createElement('div');
+      titleEl.className = 'sottocat-section-title';
+      titleEl.textContent = sc.nome;
+      section.appendChild(titleEl);
+      section.appendChild(creaGriglia(scServizi, checkboxOffset));
+      checkboxOffset += scServizi.length;
+      container.appendChild(section);
+    });
+
+    // Servizi senza sottocategoria
+    const senzaCat = serviziVisibili.filter(s => !sottocats.find(sc => sc.id === s.sottocategoriaId));
+    if (senzaCat.length > 0) {
+      const section = document.createElement('div');
+      section.className = 'sottocat-section';
+      if (hasRenderedAGroup) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'sottocat-section-title';
+        titleEl.textContent = 'Senza categoria';
+        section.appendChild(titleEl);
+      }
+      section.appendChild(creaGriglia(senzaCat, checkboxOffset));
+      checkboxOffset += senzaCat.length;
+      container.appendChild(section);
+    }
+
+    if (!hasRenderedAGroup && senzaCat.length === 0) {
+      // Tutti i servizi sono visibili ma non in nessun gruppo visibile (edge case)
+      container.appendChild(creaGriglia(serviziVisibili, 0));
+    }
+  } else {
+    // Nessuna sottocategoria — render flat
+    container.appendChild(creaGriglia(serviziVisibili, 0));
+  }
 
   // Barra stampa solo per consulenti
   const pb = document.getElementById('print-bar');
@@ -1906,13 +2064,18 @@ function switchAdminTab(tab) {
   document.querySelectorAll('.admin-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tab);
   });
-  ['consulenti','servizi','visibilita','aree','territorio','account'].forEach(t => {
+  ['consulenti','servizi','struttura','visibilita','aree','territorio','account'].forEach(t => {
     const el = document.getElementById(`admin-tab-${t}`);
     if (el) el.classList.toggle('active', t === tab);
   });
   if (tab === 'visibilita') renderAdminVisibilita();
   if (tab === 'aree') renderAdminAree();
   if (tab === 'territorio') renderAdminPartner();
+  if (tab === 'struttura') {
+    renderOrdineVerticali();
+    popolaSottocatVerticaleSelect();
+    renderAdminSottocategorie();
+  }
 }
 
 // =========================================================
@@ -2280,13 +2443,18 @@ function impostaMiaPosizione(gradoId, ev) {
 // ADMIN — SERVIZI
 // =========================================================
 function renderAdminServizi() {
-  const vertId    = document.getElementById('admin-verticale-select').value;
+  const vertId     = document.getElementById('admin-verticale-select').value;
   const serviziAll = ls(KEYS.servizi) || {};
-  const servizi   = serviziAll[vertId] || [];
+  const servizi    = serviziAll[vertId] || [];
+  const sottocatAll = ls(KEYS.sottocategorie) || {};
+  const sottocats   = sottocatAll[vertId] || [];
 
-  const list  = document.getElementById('servizi-admin-list');
-  const empty = document.getElementById('servizi-admin-empty');
-  list.innerHTML = '';
+  // Aggiorna il select sottocategoria nel form
+  aggiornaSottocatSelectPerVert(vertId);
+
+  const listEl = document.getElementById('servizi-admin-list');
+  const empty  = document.getElementById('servizi-admin-empty');
+  listEl.innerHTML = '';
 
   if (servizi.length === 0) {
     empty.style.display = 'block';
@@ -2294,26 +2462,129 @@ function renderAdminServizi() {
   }
   empty.style.display = 'none';
 
-  servizi.forEach((s, idx) => {
-    const row = document.createElement('div');
-    row.className = 'servizio-admin-row';
-    if (s.nascosto) row.style.opacity = '0.55';
-    row.innerHTML = `
-      <div class="servizio-admin-info">
-        <div class="servizio-admin-name">${escHtml(s.nome)}${s.nascosto ? ' <span class="badge-nascosto">Nascosto</span>' : ''}</div>
-        <div class="servizio-admin-meta">
-          <span>&#8364; ${formatEuro(s.prezzo)}</span>
-          <span>${tipoServizioLabel(s.tipo)}</span>
-          ${provvigioniMetaHtml(s)}
-          ${s.osmanage ? `<span>OSMANAGE&nbsp;<strong>${escHtml(s.osmanage)}</strong></span>` : ''}
+  // Costruisci i gruppi
+  const groups = [];
+  if (sottocats.length > 0) {
+    sottocats.forEach(sc => {
+      const items = servizi.map((s, i) => ({ s, origIdx: i })).filter(({ s }) => s.sottocategoriaId === sc.id);
+      groups.push({ label: sc.nome, sottocatId: sc.id, items });
+    });
+    const senzaCat = servizi.map((s, i) => ({ s, origIdx: i })).filter(({ s }) => !sottocats.find(sc => sc.id === s.sottocategoriaId));
+    groups.push({ label: senzaCat.length > 0 || sottocats.length > 0 ? 'Senza categoria' : null, sottocatId: '', items: senzaCat });
+  } else {
+    groups.push({ label: null, sottocatId: '', items: servizi.map((s, i) => ({ s, origIdx: i })) });
+  }
+
+  groups.forEach((group, gi) => {
+    if (group.items.length === 0 && group.label === 'Senza categoria') return;
+
+    if (group.label !== null) {
+      const header = document.createElement('div');
+      header.className = 'admin-sottocat-group-header';
+      if (gi === 0) header.style.cssText = 'border-top:none;margin-top:0;padding-top:4px;';
+      header.textContent = group.label;
+      listEl.appendChild(header);
+    }
+
+    const container = document.createElement('div');
+    container.className = 'sortable-services-container';
+    container.dataset.sottocatId = group.sottocatId;
+
+    // dragover sul container per drop in area vuota
+    container.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (!listEl._dragging) return;
+      container.classList.add('drag-target');
+    });
+    container.addEventListener('dragleave', e => {
+      if (!container.contains(e.relatedTarget)) container.classList.remove('drag-target');
+    });
+    container.addEventListener('drop', e => {
+      e.preventDefault();
+      container.classList.remove('drag-target');
+      const dragging = listEl._dragging;
+      if (!dragging) return;
+      // Drop in area vuota del container — sposta in fondo
+      if (!e.target.closest('.servizio-admin-row')) {
+        container.appendChild(dragging);
+      }
+    });
+
+    group.items.forEach(({ s, origIdx }) => {
+      const row = document.createElement('div');
+      row.className = 'servizio-admin-row sortable-item';
+      row.dataset.servOrigIdx = origIdx;
+      row.draggable = true;
+      if (s.nascosto) row.style.opacity = '0.55';
+
+      const scLabel = sottocats.length > 0
+        ? (sottocats.find(sc => sc.id === s.sottocategoriaId) ? '' : '')
+        : '';
+
+      row.innerHTML = `
+        <span class="drag-handle" title="Trascina per riordinare">&#8801;</span>
+        <div class="servizio-admin-info">
+          <div class="servizio-admin-name">${escHtml(s.nome)}${s.nascosto ? ' <span class="badge-nascosto">Nascosto</span>' : ''}</div>
+          <div class="servizio-admin-meta">
+            <span>&#8364; ${formatEuro(s.prezzo)}</span>
+            <span>${tipoServizioLabel(s.tipo)}</span>
+            ${provvigioniMetaHtml(s)}
+            ${s.osmanage ? `<span>OSMANAGE&nbsp;<strong>${escHtml(s.osmanage)}</strong></span>` : ''}
+          </div>
         </div>
-      </div>
-      <div class="servizio-admin-actions">
-        <button class="btn-icon ${s.nascosto ? 'toggle-on' : 'toggle-off'}" title="${s.nascosto ? 'Rendi visibile' : 'Oscura ai consulenti'}" onclick="toggleVisibilitaServizio('${escAttr(vertId)}',${idx})">${s.nascosto ? '&#128065;' : '&#128683;'}</button>
-        <button class="btn-icon edit" title="Modifica" onclick="startEditServizio('${escAttr(vertId)}',${idx})">&#9998;</button>
-        <button class="btn-icon danger" title="Elimina" onclick="deleteServizioPrompt('${escAttr(vertId)}',${idx})">&#10005;</button>
-      </div>`;
-    list.appendChild(row);
+        <div class="servizio-admin-actions">
+          <button class="btn-icon ${s.nascosto ? 'toggle-on' : 'toggle-off'}" title="${s.nascosto ? 'Rendi visibile' : 'Oscura ai consulenti'}" onclick="toggleVisibilitaServizio('${escAttr(vertId)}',${origIdx})">${s.nascosto ? '&#128065;' : '&#128683;'}</button>
+          <button class="btn-icon edit" title="Modifica" onclick="startEditServizio('${escAttr(vertId)}',${origIdx})">&#9998;</button>
+          <button class="btn-icon danger" title="Elimina" onclick="deleteServizioPrompt('${escAttr(vertId)}',${origIdx})">&#10005;</button>
+        </div>`;
+
+      // --- Drag events ---
+      row.addEventListener('dragstart', e => {
+        e.dataTransfer.effectAllowed = 'move';
+        row.classList.add('dragging');
+        listEl._dragging = row;
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        listEl.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        listEl.querySelectorAll('.drag-target').forEach(el => el.classList.remove('drag-target'));
+        const dragging = listEl._dragging;
+        listEl._dragging = null;
+        if (dragging) {
+          salvaOrdineServizi(vertId);
+          setTimeout(() => renderAdminServizi(), 0);
+        }
+      });
+      row.addEventListener('dragover', e => {
+        e.preventDefault();
+        const dragging = listEl._dragging;
+        if (!dragging || dragging === row) return;
+        listEl.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        row.classList.add('drag-over');
+      });
+      row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+      row.addEventListener('drop', e => {
+        e.preventDefault();
+        const dragging = listEl._dragging;
+        if (!dragging || dragging === row) return;
+        row.classList.remove('drag-over');
+        const targetContainer = row.closest('.sortable-services-container');
+        const rect = row.getBoundingClientRect();
+        if (e.clientY < rect.top + rect.height / 2) {
+          targetContainer.insertBefore(dragging, row);
+        } else {
+          targetContainer.insertBefore(dragging, row.nextSibling);
+        }
+      });
+
+      // --- Touch/pointer events per tablet ---
+      setupPointerDragServizi(listEl, row, container, vertId);
+
+      container.appendChild(row);
+    });
+
+    listEl.appendChild(container);
   });
 }
 
@@ -2355,6 +2626,8 @@ function saveServizio() {
   const serviziAll = ls(KEYS.servizi) || {};
   if (!serviziAll[vertId]) serviziAll[vertId] = [];
 
+  const sottocatId = (document.getElementById('serv-sottocat') || {}).value || null;
+
   const obj = {
     nome,
     osmanage,
@@ -2362,7 +2635,8 @@ function saveServizio() {
     descrizione: desc,
     dettaglio,
     prezzo: parseFloat(parseFloat(prezzoRaw).toFixed(2)),
-    vss:    parseFloat(parseFloat(vssRaw).toFixed(2))
+    vss:    parseFloat(parseFloat(vssRaw).toFixed(2)),
+    sottocategoriaId: sottocatId || null
   };
   if (tipo === 'standard') {
     obj.vsdJunior = parseFloat(parseFloat(vsdJuniorRaw).toFixed(2));
@@ -2413,6 +2687,8 @@ function startEditServizio(vertId, idx) {
   document.getElementById('serv-vsd-senior').value      = tipo === 'standard' ? s.vsdSenior : '';
   document.getElementById('serv-provv-erogatore').value = tipo === 'corso'    ? s.provvErogatore : '';
   toggleTipoServizioFields();
+  const sottocatSel = document.getElementById('serv-sottocat');
+  if (sottocatSel) sottocatSel.value = s.sottocategoriaId || '';
   document.getElementById('edit-servizio-idx').value = idx;
   document.getElementById('admin-form-title').textContent = 'Modifica servizio';
   document.getElementById('cancel-edit-btn').style.display = '';
@@ -2445,6 +2721,8 @@ function clearServizioForm() {
   toggleTipoServizioFields();
   aggiornaAnteprimaTesto('serv-desc');
   aggiornaAnteprimaTesto('serv-dettaglio');
+  const sottocatSel = document.getElementById('serv-sottocat');
+  if (sottocatSel) sottocatSel.value = '';
 }
 
 function deleteServizioPrompt(vertId, idx) {
@@ -3616,6 +3894,368 @@ function renderVisibilitaServizi() {
         </label>
       </div>`;
     list.appendChild(row);
+  });
+}
+
+// =========================================================
+// ORDINE VERTICALI — drag&drop
+// =========================================================
+function renderOrdineVerticali() {
+  const list = document.getElementById('ordine-verticali-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const ordineVerts = ls(KEYS.ordineVerticali) || VERTICALI.map(v => v.id);
+  const verticaliOrdinati = [...VERTICALI].sort((a, b) => {
+    const ia = ordineVerts.indexOf(a.id);
+    const ib = ordineVerts.indexOf(b.id);
+    return (ia < 0 ? 9999 : ia) - (ib < 0 ? 9999 : ib);
+  });
+
+  verticaliOrdinati.forEach(vert => {
+    const row = document.createElement('div');
+    row.className = 'ordine-vert-row sortable-item';
+    row.dataset.id = vert.id;
+    row.draggable = true;
+
+    const logoWrap = document.createElement('div');
+    logoWrap.className = 'ordine-vert-logo';
+    const img = document.createElement('img');
+    img.src = vert.logo;
+    img.alt = '';
+    img.style.cssText = 'max-width:28px;max-height:28px;object-fit:contain;';
+    img.addEventListener('error', () => {
+      logoWrap.innerHTML = `<span style="font-size:0.6rem;font-weight:800;color:var(--fucsia);">${escHtml(vert.initials)}</span>`;
+    });
+    logoWrap.appendChild(img);
+
+    row.innerHTML = `<span class="drag-handle" title="Trascina per riordinare">&#8801;</span>`;
+    row.appendChild(logoWrap);
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'ordine-vert-nome';
+    nameSpan.textContent = vert.nome;
+    row.appendChild(nameSpan);
+
+    setupDragSort(list, row, salvaOrdineVerticali);
+    list.appendChild(row);
+  });
+}
+
+function salvaOrdineVerticali() {
+  const list = document.getElementById('ordine-verticali-list');
+  if (!list) return;
+  const ids = Array.from(list.querySelectorAll('.sortable-item[data-id]')).map(el => el.dataset.id);
+  save(KEYS.ordineVerticali, ids);
+  // Aggiorna la home se è visibile
+  if (document.getElementById('view-home').classList.contains('active')) renderHome();
+}
+
+// =========================================================
+// DRAG SORT GENERICO (per liste semplici — verticali e sottocategorie)
+// =========================================================
+function setupDragSort(list, item, onDrop) {
+  item.addEventListener('dragstart', e => {
+    e.dataTransfer.effectAllowed = 'move';
+    item.classList.add('dragging');
+    list._dragging = item;
+  });
+  item.addEventListener('dragend', () => {
+    item.classList.remove('dragging');
+    list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    list._dragging = null;
+  });
+  item.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const dragging = list._dragging;
+    if (!dragging || dragging === item) return;
+    list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    item.classList.add('drag-over');
+  });
+  item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+  item.addEventListener('drop', e => {
+    e.preventDefault();
+    const dragging = list._dragging;
+    if (!dragging || dragging === item) return;
+    item.classList.remove('drag-over');
+    const rect = item.getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) {
+      list.insertBefore(dragging, item);
+    } else {
+      list.insertBefore(dragging, item.nextSibling);
+    }
+    onDrop();
+  });
+
+  // Pointer events per touch/tablet
+  let pDragActive = false;
+  let pStartY = 0;
+  item.addEventListener('pointerdown', e => {
+    const handle = item.querySelector('.drag-handle');
+    if (handle && !handle.contains(e.target)) return;
+    if (e.pointerType === 'mouse') return;
+    pStartY = e.clientY; pDragActive = false;
+    item.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }, { passive: false });
+  item.addEventListener('pointermove', e => {
+    if (e.pointerType === 'mouse') return;
+    if (!item.hasPointerCapture(e.pointerId)) return;
+    if (!pDragActive && Math.abs(e.clientY - pStartY) > 6) {
+      pDragActive = true;
+      item.classList.add('dragging');
+      list._dragging = item;
+    }
+    if (!pDragActive) return;
+    e.preventDefault();
+    item.style.display = 'none';
+    const elBelow = document.elementFromPoint(e.clientX, e.clientY);
+    item.style.display = '';
+    const target = elBelow ? elBelow.closest('.sortable-item') : null;
+    list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if (target && target !== item && target.parentElement === list) target.classList.add('drag-over');
+  }, { passive: false });
+  item.addEventListener('pointerup', e => {
+    if (e.pointerType === 'mouse') return;
+    if (!pDragActive) { pDragActive = false; return; }
+    pDragActive = false;
+    item.classList.remove('dragging');
+    item.style.display = 'none';
+    const elBelow = document.elementFromPoint(e.clientX, e.clientY);
+    item.style.display = '';
+    const target = elBelow ? elBelow.closest('.sortable-item') : null;
+    list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if (target && target !== item && target.parentElement === list) {
+      const rect = target.getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) list.insertBefore(item, target);
+      else list.insertBefore(item, target.nextSibling);
+      onDrop();
+    }
+    list._dragging = null;
+  });
+}
+
+// =========================================================
+// SALVA ORDINE SERVIZI (legge DOM e ricostruisce array)
+// =========================================================
+function salvaOrdineServizi(vertId) {
+  const listEl = document.getElementById('servizi-admin-list');
+  if (!listEl) return;
+  const serviziAll = ls(KEYS.servizi) || {};
+  const originalServizi = (serviziAll[vertId] || []).slice(); // copia
+
+  const newServizi = [];
+  listEl.querySelectorAll('.sortable-services-container').forEach(container => {
+    const sottocatId = container.dataset.sottocatId || null;
+    container.querySelectorAll('.sortable-item[data-serv-orig-idx]').forEach(el => {
+      const origIdx = parseInt(el.dataset.servOrigIdx);
+      if (!isNaN(origIdx) && originalServizi[origIdx]) {
+        const s = Object.assign({}, originalServizi[origIdx]);
+        s.sottocategoriaId = sottocatId || null;
+        newServizi.push(s);
+      }
+    });
+  });
+
+  if (newServizi.length > 0) {
+    serviziAll[vertId] = newServizi;
+    save(KEYS.servizi, serviziAll);
+  }
+}
+
+// =========================================================
+// POINTER DRAG PER SERVIZI ADMIN (touch/tablet)
+// =========================================================
+function setupPointerDragServizi(listEl, row, container, vertId) {
+  let pActive = false, pStartY = 0;
+  row.addEventListener('pointerdown', e => {
+    const handle = row.querySelector('.drag-handle');
+    if (!handle || !handle.contains(e.target)) return;
+    if (e.pointerType === 'mouse') return;
+    pStartY = e.clientY; pActive = false;
+    row.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }, { passive: false });
+  row.addEventListener('pointermove', e => {
+    if (e.pointerType === 'mouse') return;
+    if (!row.hasPointerCapture(e.pointerId)) return;
+    if (!pActive && Math.abs(e.clientY - pStartY) > 6) {
+      pActive = true;
+      row.classList.add('dragging');
+      listEl._dragging = row;
+    }
+    if (!pActive) return;
+    e.preventDefault();
+    row.style.display = 'none';
+    const elBelow = document.elementFromPoint(e.clientX, e.clientY);
+    row.style.display = '';
+    listEl.querySelectorAll('.drag-over,.drag-target').forEach(el => {
+      el.classList.remove('drag-over'); el.classList.remove('drag-target');
+    });
+    const targetRow = elBelow ? elBelow.closest('.servizio-admin-row') : null;
+    const targetContainer = elBelow ? elBelow.closest('.sortable-services-container') : null;
+    if (targetRow && targetRow !== row) targetRow.classList.add('drag-over');
+    else if (targetContainer) targetContainer.classList.add('drag-target');
+  }, { passive: false });
+  row.addEventListener('pointerup', e => {
+    if (e.pointerType === 'mouse') return;
+    if (!pActive) { pActive = false; return; }
+    pActive = false;
+    row.classList.remove('dragging');
+    row.style.display = 'none';
+    const elBelow = document.elementFromPoint(e.clientX, e.clientY);
+    row.style.display = '';
+    listEl.querySelectorAll('.drag-over,.drag-target').forEach(el => {
+      el.classList.remove('drag-over'); el.classList.remove('drag-target');
+    });
+    const targetRow = elBelow ? elBelow.closest('.servizio-admin-row') : null;
+    const targetContainer = elBelow ? elBelow.closest('.sortable-services-container') : null;
+    if (targetRow && targetRow !== row) {
+      const tc = targetRow.closest('.sortable-services-container');
+      const rect = targetRow.getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) tc.insertBefore(row, targetRow);
+      else tc.insertBefore(row, targetRow.nextSibling);
+      salvaOrdineServizi(vertId);
+      setTimeout(() => renderAdminServizi(), 0);
+    } else if (targetContainer && targetContainer !== row.closest('.sortable-services-container')) {
+      targetContainer.appendChild(row);
+      salvaOrdineServizi(vertId);
+      setTimeout(() => renderAdminServizi(), 0);
+    }
+    listEl._dragging = null;
+  });
+}
+
+// =========================================================
+// SOTTOCATEGORIE
+// =========================================================
+function popolaSottocatVerticaleSelect() {
+  const sel = document.getElementById('admin-sottocat-verticale-select');
+  if (!sel) return;
+  if (sel.options.length === 0) {
+    VERTICALI.forEach(vert => {
+      const opt = document.createElement('option');
+      opt.value = vert.id;
+      opt.textContent = vert.nome;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+function renderAdminSottocategorie() {
+  const sel = document.getElementById('admin-sottocat-verticale-select');
+  if (!sel) return;
+  const vertId      = sel.value;
+  const sottocatAll = ls(KEYS.sottocategorie) || {};
+  const sottocats   = sottocatAll[vertId] || [];
+  const serviziAll  = ls(KEYS.servizi) || {};
+  const servizi     = serviziAll[vertId] || [];
+
+  const list = document.getElementById('sottocategorie-admin-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  if (sottocats.length === 0) {
+    list.innerHTML = '<div class="empty-state-note" style="display:block;padding:10px 0;">Nessuna sottocategoria ancora creata per questa verticale.</div>';
+    return;
+  }
+
+  sottocats.forEach(sc => {
+    const count = servizi.filter(s => s.sottocategoriaId === sc.id).length;
+    const row = document.createElement('div');
+    row.className = 'sottocat-admin-row sortable-item';
+    row.dataset.id = sc.id;
+    row.draggable = true;
+    row.innerHTML = `
+      <span class="drag-handle" title="Trascina per riordinare">&#8801;</span>
+      <span class="sottocat-admin-row-name">${escHtml(sc.nome)}</span>
+      <span class="sottocat-admin-row-count">${count} serv.</span>
+      <button class="btn-icon edit" title="Rinomina" onclick="rinominaSottocategoria('${escAttr(vertId)}','${escAttr(sc.id)}')">&#9998;</button>
+      <button class="btn-icon danger" title="Elimina" onclick="deleteSottocategoria('${escAttr(vertId)}','${escAttr(sc.id)}')">&#10005;</button>
+    `;
+    setupDragSort(list, row, () => salvaOrdineSottocategorie(vertId));
+    list.appendChild(row);
+  });
+}
+
+function addSottocategoria() {
+  const sel  = document.getElementById('admin-sottocat-verticale-select');
+  const nome = document.getElementById('new-sottocat-nome').value.trim();
+  const errEl = document.getElementById('alert-sottocat-err');
+  const okEl  = document.getElementById('alert-sottocat-ok');
+  hideAlerts([errEl, okEl]);
+
+  if (!sel || !nome) { showAlert(errEl, 'Inserisci un nome per la sottocategoria.'); return; }
+  const vertId = sel.value;
+
+  const sottocatAll = ls(KEYS.sottocategorie) || {};
+  if (!sottocatAll[vertId]) sottocatAll[vertId] = [];
+
+  const id = 'sc_' + Date.now();
+  sottocatAll[vertId].push({ id, nome });
+  save(KEYS.sottocategorie, sottocatAll);
+
+  document.getElementById('new-sottocat-nome').value = '';
+  showAlert(okEl, 'Sottocategoria "' + nome + '" aggiunta.');
+  renderAdminSottocategorie();
+  aggiornaSottocatSelectPerVert(vertId);
+}
+
+function rinominaSottocategoria(vertId, scId) {
+  const sottocatAll = ls(KEYS.sottocategorie) || {};
+  const sottocats   = sottocatAll[vertId] || [];
+  const sc = sottocats.find(s => s.id === scId);
+  if (!sc) return;
+  const nuovoNome = prompt('Nuovo nome per la sottocategoria:', sc.nome);
+  if (!nuovoNome || !nuovoNome.trim()) return;
+  sc.nome = nuovoNome.trim();
+  save(KEYS.sottocategorie, sottocatAll);
+  renderAdminSottocategorie();
+  aggiornaSottocatSelectPerVert(vertId);
+}
+
+function deleteSottocategoria(vertId, scId) {
+  openDeleteModal('Eliminare questa sottocategoria? I servizi assegnati rimarranno nel catalogo ma perderanno la categoria.', () => {
+    const sottocatAll = ls(KEYS.sottocategorie) || {};
+    sottocatAll[vertId] = (sottocatAll[vertId] || []).filter(sc => sc.id !== scId);
+    save(KEYS.sottocategorie, sottocatAll);
+
+    // Rimuovi il riferimento dai servizi
+    const serviziAll = ls(KEYS.servizi) || {};
+    (serviziAll[vertId] || []).forEach(s => {
+      if (s.sottocategoriaId === scId) s.sottocategoriaId = null;
+    });
+    save(KEYS.servizi, serviziAll);
+
+    renderAdminSottocategorie();
+    aggiornaSottocatSelectPerVert(vertId);
+    renderAdminServizi();
+  });
+}
+
+function salvaOrdineSottocategorie(vertId) {
+  const list = document.getElementById('sottocategorie-admin-list');
+  if (!list) return;
+  const sottocatAll = ls(KEYS.sottocategorie) || {};
+  const sottocats   = sottocatAll[vertId] || [];
+  const orderedIds  = Array.from(list.querySelectorAll('.sortable-item[data-id]')).map(el => el.dataset.id);
+  sottocatAll[vertId] = orderedIds.map(id => sottocats.find(sc => sc.id === id)).filter(Boolean);
+  save(KEYS.sottocategorie, sottocatAll);
+}
+
+function aggiornaSottocatSelectPerVert(vertId) {
+  const sel = document.getElementById('serv-sottocat');
+  if (!sel) return;
+  const curVal      = sel.value;
+  const sottocatAll = ls(KEYS.sottocategorie) || {};
+  const sottocats   = sottocatAll[vertId] || [];
+  sel.innerHTML = '<option value="">&#8212; Nessuna sottocategoria &#8212;</option>';
+  sottocats.forEach(sc => {
+    const opt = document.createElement('option');
+    opt.value = sc.id;
+    opt.textContent = sc.nome;
+    if (sc.id === curVal) opt.selected = true;
+    sel.appendChild(opt);
   });
 }
 
