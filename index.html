@@ -739,6 +739,65 @@ textarea.form-input { resize: vertical; }
 .partner-admin-meta { font-size: 0.73rem; color: var(--testo-muted); line-height: 1.5; }
 .partner-admin-actions { display: flex; gap: 5px; flex-shrink: 0; }
 
+/* ===== VISIBILITÀ / OSCURAMENTO ===== */
+.badge-nascosto {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #f0f0f0; color: #888;
+  border: 1px solid #ccc; border-radius: 20px;
+  padding: 2px 9px; font-size: 0.65rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+.verticale-card.nascosta {
+  opacity: 0.52;
+  border-style: dashed !important;
+  border-color: #ccc !important;
+  box-shadow: none !important;
+}
+.verticale-card.nascosta::after { display: none !important; }
+.servizio-card.nascosto-admin {
+  opacity: 0.5;
+  border-style: dashed !important;
+  background: #f8f8f8 !important;
+}
+.servizio-card.nascosto-admin .servizio-prezzo {
+  background: #eee !important;
+  color: #999 !important;
+  border-color: #ddd !important;
+}
+.visib-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg-soft); border: 1px solid var(--card-border);
+  border-radius: 10px; padding: 12px 16px; margin-bottom: 8px;
+}
+.visib-row-info { flex: 1; }
+.visib-row-name { font-size: 0.9rem; font-weight: 700; color: var(--testo); margin-bottom: 2px; }
+.visib-row-meta { font-size: 0.73rem; color: var(--testo-muted); }
+/* Toggle switch */
+.toggle-vis {
+  position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0;
+}
+.toggle-vis input { opacity: 0; width: 0; height: 0; }
+.toggle-vis-slider {
+  position: absolute; cursor: pointer; inset: 0; border-radius: 24px;
+  background: var(--fucsia); transition: 0.25s;
+}
+.toggle-vis-slider::before {
+  content: ''; position: absolute;
+  height: 18px; width: 18px; left: 3px; bottom: 3px;
+  background: #fff; border-radius: 50%; transition: 0.25s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+}
+.toggle-vis input:checked + .toggle-vis-slider { background: #ccc; }
+.toggle-vis input:checked + .toggle-vis-slider::before { transform: translateX(20px); }
+.toggle-vis-label {
+  font-size: 0.72rem; font-weight: 700; color: var(--testo-muted);
+  min-width: 70px; text-align: right;
+}
+.toggle-vis-wrap { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.btn-icon.toggle-off { border-color: #ccc; color: #bbb; }
+.btn-icon.toggle-on  { border-color: var(--fucsia-border); color: var(--fucsia); background: var(--fucsia-light); }
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 680px) {
   .navbar { padding: 0 14px; gap: 5px; }
@@ -974,6 +1033,7 @@ textarea.form-input { resize: vertical; }
     <div class="admin-tabs">
       <button class="admin-tab active" data-tab="consulenti" onclick="switchAdminTab('consulenti')">Gestione Consulenti</button>
       <button class="admin-tab" data-tab="servizi" onclick="switchAdminTab('servizi')">Gestione Servizi</button>
+      <button class="admin-tab" data-tab="visibilita" onclick="switchAdminTab('visibilita')">Visibilit&#224; Catalogo</button>
       <button class="admin-tab" data-tab="aree" onclick="switchAdminTab('aree')">Aree Territoriali</button>
       <button class="admin-tab" data-tab="territorio" onclick="switchAdminTab('territorio')">Territorio Partner</button>
       <button class="admin-tab" data-tab="account" onclick="switchAdminTab('account')">Impostazioni Account</button>
@@ -1098,6 +1158,24 @@ textarea.form-input { resize: vertical; }
           <button class="btn btn-primary btn-sm" onclick="saveServizio()">Salva servizio</button>
           <button class="btn btn-outline btn-sm" id="cancel-edit-btn" onclick="cancelEditServizio()" style="display:none;">Annulla</button>
         </div>
+      </div>
+    </div>
+
+    <!-- TAB VISIBILITÀ -->
+    <div class="admin-section" id="admin-tab-visibilita">
+      <div class="card-panel">
+        <div class="card-panel-title">Visibilit&#224; Verticali</div>
+        <p style="font-size:0.82rem;color:var(--testo-muted);margin-bottom:16px;">Oscura un'intera verticale per nasconderla ai consulenti. L'admin continua a vederla sempre, attenuata.</p>
+        <div id="visibilita-verticali-list"></div>
+      </div>
+      <div class="card-panel">
+        <div class="card-panel-title">Visibilit&#224; Singoli Servizi</div>
+        <p style="font-size:0.82rem;color:var(--testo-muted);margin-bottom:14px;">Oscura singoli servizi all'interno di una verticale. Un servizio oscurato non compare ai consulenti anche se il verticale genitore &#232; visibile.</p>
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label">Seleziona verticale</label>
+          <select class="form-select" id="admin-visib-verticale-select" onchange="renderVisibilitaServizi()"></select>
+        </div>
+        <div id="visibilita-servizi-list"></div>
       </div>
     </div>
 
@@ -1321,7 +1399,8 @@ const KEYS = {
   session:      'osm_catalogo_session',
   partner:      'osm_catalogo_partner',
   aree:         'osm_catalogo_aree',
-  organigramma: 'osm_catalogo_organigramma'
+  organigramma: 'osm_catalogo_organigramma',
+  visibilita:   'osm_catalogo_visibilita'
 };
 
 // Specializzazioni suggerite nell'organigramma (derivate dalle verticali del catalogo)
@@ -1479,6 +1558,11 @@ function initStorage() {
           }
           cambiato = true;
         }
+        // Migra: aggiunge il flag nascosto se mancante
+        if (s.nascosto === undefined) {
+          s.nascosto = false;
+          cambiato = true;
+        }
       });
     });
     if (cambiato) save(KEYS.servizi, serviziSalvati);
@@ -1491,6 +1575,9 @@ function initStorage() {
   }
   if (!ls(KEYS.organigramma)) {
     save(KEYS.organigramma, []);
+  }
+  if (!ls(KEYS.visibilita)) {
+    save(KEYS.visibilita, {});
   }
 }
 
@@ -1574,6 +1661,12 @@ function goVerticale(vertId) {
   const sess = ssGet(KEYS.session);
   const isAdmin = sess && sess.ruolo === 'admin';
 
+  // I consulenti non possono accedere a verticali oscurate
+  if (!isAdmin) {
+    const visibilita = ls(KEYS.visibilita) || {};
+    if (visibilita[vertId] === true) return;
+  }
+
   // Titolo
   document.getElementById('vpage-title').textContent = vert.nome;
   document.getElementById('vpage-sub').textContent =
@@ -1609,14 +1702,32 @@ function renderHome() {
   const grid = document.getElementById('verticali-grid');
   grid.innerHTML = '';
   const serviziAll = ls(KEYS.servizi) || {};
+  const visibilita = ls(KEYS.visibilita) || {};
+
+  const sess    = ssGet(KEYS.session);
+  const isAdmin = sess && sess.ruolo === 'admin';
 
   VERTICALI.forEach(vert => {
-    const count = (serviziAll[vert.id] || []).length;
+    const nascosta = visibilita[vert.id] === true;
+
+    // I consulenti non vedono le verticali oscurate
+    if (!isAdmin && nascosta) return;
+
+    // Conta solo i servizi visibili (per i consulenti); per admin conta tutti
+    const tuttiServizi = serviziAll[vert.id] || [];
+    const count = isAdmin
+      ? tuttiServizi.length
+      : tuttiServizi.filter(s => !s.nascosto).length;
+
     const card  = document.createElement('div');
-    card.className = 'verticale-card';
+    card.className = 'verticale-card' + (isAdmin && nascosta ? ' nascosta' : '');
     card.onclick   = () => goVerticale(vert.id);
 
     const zoomClass = vert.id === 'osm-beauty' ? ' logo-zoom' : '';
+    const badgeNascosta = (isAdmin && nascosta)
+      ? `<span class="badge-nascosto">&#9888; Nascosta ai consulenti</span>`
+      : '';
+
     card.innerHTML = `
       <div class="verticale-logo-wrap">
         <img class="verticale-logo-img${zoomClass}" src="${escAttr(vert.logo)}" alt="${escAttr(vert.nome)}"
@@ -1625,6 +1736,7 @@ function renderHome() {
       <div class="verticale-name">${escHtml(vert.nome)}</div>
       <div class="verticale-meta">
         <span class="count-badge">${count} servizi</span>
+        ${badgeNascosta}
         <span class="verticale-arrow">&#8594;</span>
       </div>
     `;
@@ -1637,15 +1749,24 @@ function renderHome() {
 // =========================================================
 function renderServiziVerticale(vert, isAdmin) {
   const serviziAll = ls(KEYS.servizi) || {};
-  const servizi    = serviziAll[vert.id] || [];
+  const tuttiServizi = serviziAll[vert.id] || [];
 
-  document.getElementById('vpage-count').textContent =
-    `${servizi.length} servizio${servizi.length !== 1 ? 'i' : ''}`;
+  // I consulenti vedono solo i servizi non oscurati
+  // L'admin vede tutto, ma con indicatori visivi
+  const serviziVisibili = isAdmin
+    ? tuttiServizi
+    : tuttiServizi.filter(s => !s.nascosto);
+
+  const countLabel = isAdmin
+    ? `${tuttiServizi.length} servizio${tuttiServizi.length !== 1 ? 'i' : ''}`
+    : `${serviziVisibili.length} servizio${serviziVisibili.length !== 1 ? 'i' : ''}`;
+
+  document.getElementById('vpage-count').textContent = countLabel;
 
   const container = document.getElementById('servizi-container');
   container.innerHTML = '';
 
-  if (servizi.length === 0) {
+  if (serviziVisibili.length === 0) {
     container.innerHTML = `
       <div class="servizi-empty">
         <div class="servizi-empty-icon">&#128203;</div>
@@ -1659,21 +1780,36 @@ function renderServiziVerticale(vert, isAdmin) {
   const grid = document.createElement('div');
   grid.className = 'servizi-grid';
 
-  servizi.forEach((s, idx) => {
-    const card = document.createElement('div');
-    card.className = 'servizio-card';
-    card.id = `sc-${idx}`;
+  // Per i consulenti usiamo serviziVisibili con indice progressivo per la stampa
+  // Per l'admin usiamo tuttiServizi con indice originale (necessario per edit/delete)
+  const listaRender = isAdmin ? tuttiServizi : serviziVisibili;
 
-    // Pulsanti admin
+  listaRender.forEach((s, renderIdx) => {
+    // L'indice reale nel dataset (per admin = renderIdx, per consulente non serve l'idx reale)
+    // Per admin, renderIdx corrisponde all'indice reale in tuttiServizi
+    const realIdx = isAdmin ? renderIdx : tuttiServizi.indexOf(s);
+
+    const card = document.createElement('div');
+    const nascontoClass = (isAdmin && s.nascosto) ? ' nascosto-admin' : '';
+    card.className = 'servizio-card' + nascontoClass;
+    card.id = `sc-${renderIdx}`;
+
+    // Badge nascosto per admin
+    const badgeNascosto = (isAdmin && s.nascosto)
+      ? `<span class="badge-nascosto" style="margin-bottom:8px;display:inline-flex;">&#9888; Nascosto ai consulenti</span>`
+      : '';
+
+    // Pulsanti admin: edit, delete + toggle oscura
     const adminBtns = isAdmin ? `
       <div class="servizio-admin-btns">
-        <button class="btn-icon edit" title="Modifica" onclick="event.stopPropagation();editServizioFromCard('${escAttr(vert.id)}',${idx})">&#9998;</button>
-        <button class="btn-icon danger" title="Elimina" onclick="event.stopPropagation();deleteServizioPrompt('${escAttr(vert.id)}',${idx})">&#10005;</button>
+        <button class="btn-icon ${s.nascosto ? 'toggle-on' : 'toggle-off'}" title="${s.nascosto ? 'Rendi visibile' : 'Oscura ai consulenti'}" onclick="event.stopPropagation();toggleVisibilitaServizio('${escAttr(vert.id)}',${realIdx})">${s.nascosto ? '&#128065;' : '&#128683;'}</button>
+        <button class="btn-icon edit" title="Modifica" onclick="event.stopPropagation();editServizioFromCard('${escAttr(vert.id)}',${realIdx})">&#9998;</button>
+        <button class="btn-icon danger" title="Elimina" onclick="event.stopPropagation();deleteServizioPrompt('${escAttr(vert.id)}',${realIdx})">&#10005;</button>
       </div>` : '';
 
-    // Checkbox per consulenti
+    // Checkbox per consulenti — usa data-real-idx per la stampa
     const chkHtml = !isAdmin
-      ? `<input type="checkbox" class="servizio-checkbox" id="chk-${idx}" onchange="updatePrintBar()" onclick="event.stopPropagation()">`
+      ? `<input type="checkbox" class="servizio-checkbox" id="chk-${renderIdx}" data-real-idx="${realIdx}" onchange="updatePrintBar()" onclick="event.stopPropagation()">`
       : '';
 
     // Provvigioni: visibili a chiunque acceda a questa pagina (admin e consulenti, entrambi loggati)
@@ -1681,6 +1817,7 @@ function renderServiziVerticale(vert, isAdmin) {
 
     card.innerHTML = `
       ${adminBtns}
+      ${badgeNascosto}
       <div class="servizio-card-header">
         ${chkHtml}
         <div class="servizio-name">${escHtml(s.nome)}</div>
@@ -1691,7 +1828,7 @@ function renderServiziVerticale(vert, isAdmin) {
         ${provHtml}
       </div>`;
     card.style.cursor = 'pointer';
-    card.addEventListener('click', () => apriSchedaServizio(vert.id, idx));
+    card.addEventListener('click', () => apriSchedaServizio(vert.id, realIdx));
     grid.appendChild(card);
   });
 
@@ -1736,8 +1873,9 @@ function stampaSelezione() {
   }
 
   const scelti = selected.map(chk => {
-    const idx = parseInt(chk.id.replace('chk-', ''));
-    return servizi[idx];
+    // data-real-idx contiene l'indice reale nel dataset (necessario con il filtro visibilità)
+    const realIdx = chk.dataset.realIdx !== undefined ? parseInt(chk.dataset.realIdx) : parseInt(chk.id.replace('chk-', ''));
+    return servizi[realIdx];
   }).filter(Boolean);
 
   const area = document.getElementById('print-area');
@@ -1768,10 +1906,11 @@ function switchAdminTab(tab) {
   document.querySelectorAll('.admin-tab').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.tab === tab);
   });
-  ['consulenti','servizi','aree','territorio','account'].forEach(t => {
+  ['consulenti','servizi','visibilita','aree','territorio','account'].forEach(t => {
     const el = document.getElementById(`admin-tab-${t}`);
     if (el) el.classList.toggle('active', t === tab);
   });
+  if (tab === 'visibilita') renderAdminVisibilita();
   if (tab === 'aree') renderAdminAree();
   if (tab === 'territorio') renderAdminPartner();
 }
@@ -2025,10 +2164,32 @@ function cancelEditOrganigramma() {
 }
 
 function deleteOrganigrammaPrompt(id) {
-  openDeleteModal('Eliminare questa persona dall\'organigramma?', () => {
-    let persone = ls(KEYS.organigramma) || [];
-    persone = persone.filter(x => x.id !== id);
-    save(KEYS.organigramma, persone);
+  const persone = ls(KEYS.organigramma) || [];
+  const persona = persone.find(p => p.id === id);
+  if (!persona) return;
+  const subordinati = persone.filter(p => p.superioreId === id);
+
+  let msg = 'Eliminare "' + persona.nome + ' ' + persona.cognome + '" dall\'organigramma?';
+  if (subordinati.length > 0) {
+    const nomi = subordinati.map(p => p.nome + ' ' + p.cognome).join(', ');
+    const livello = persona.superioreId
+      ? 'al livello del suo superiore diretto'
+      : 'al vertice dell\'organigramma';
+    msg += ' Attenzione: ha ' + subordinati.length + ' subordinato/i (' + nomi + ') che verranno promossi ' + livello + '.';
+  }
+
+  openDeleteModal(msg, () => {
+    let aggiornate = ls(KEYS.organigramma) || [];
+    // Promuovi i subordinati diretti al livello della persona rimossa
+    aggiornate = aggiornate.map(p => {
+      if (p.superioreId === id) {
+        return Object.assign({}, p, { superioreId: persona.superioreId || '' });
+      }
+      return p;
+    });
+    // Rimuovi la persona
+    aggiornate = aggiornate.filter(p => p.id !== id);
+    save(KEYS.organigramma, aggiornate);
     renderOrganigramma();
   });
 }
@@ -2136,9 +2297,10 @@ function renderAdminServizi() {
   servizi.forEach((s, idx) => {
     const row = document.createElement('div');
     row.className = 'servizio-admin-row';
+    if (s.nascosto) row.style.opacity = '0.55';
     row.innerHTML = `
       <div class="servizio-admin-info">
-        <div class="servizio-admin-name">${escHtml(s.nome)}</div>
+        <div class="servizio-admin-name">${escHtml(s.nome)}${s.nascosto ? ' <span class="badge-nascosto">Nascosto</span>' : ''}</div>
         <div class="servizio-admin-meta">
           <span>&#8364; ${formatEuro(s.prezzo)}</span>
           <span>${tipoServizioLabel(s.tipo)}</span>
@@ -2147,6 +2309,7 @@ function renderAdminServizi() {
         </div>
       </div>
       <div class="servizio-admin-actions">
+        <button class="btn-icon ${s.nascosto ? 'toggle-on' : 'toggle-off'}" title="${s.nascosto ? 'Rendi visibile' : 'Oscura ai consulenti'}" onclick="toggleVisibilitaServizio('${escAttr(vertId)}',${idx})">${s.nascosto ? '&#128065;' : '&#128683;'}</button>
         <button class="btn-icon edit" title="Modifica" onclick="startEditServizio('${escAttr(vertId)}',${idx})">&#9998;</button>
         <button class="btn-icon danger" title="Elimina" onclick="deleteServizioPrompt('${escAttr(vertId)}',${idx})">&#10005;</button>
       </div>`;
@@ -2209,10 +2372,14 @@ function saveServizio() {
   }
 
   if (editIdx !== '') {
+    // Preserva il flag nascosto esistente quando si modifica un servizio
+    const nascostoEsistente = (serviziAll[vertId][parseInt(editIdx)] || {}).nascosto || false;
+    obj.nascosto = nascostoEsistente;
     serviziAll[vertId][parseInt(editIdx)] = obj;
     showAlert(okEl, 'Servizio modificato con successo.');
     cancelEditServizio();
   } else {
+    obj.nascosto = false;
     serviziAll[vertId].push(obj);
     showAlert(okEl, 'Servizio aggiunto con successo.');
     clearServizioForm();
@@ -3342,6 +3509,115 @@ document.getElementById('responsabile-nome-input').addEventListener('keydown', e
 document.getElementById('responsabile-contatto-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); aggiungiResponsabileForm(); }
 });
+
+// =========================================================
+// VISIBILITÀ CATALOGO — funzioni
+// =========================================================
+
+function toggleVisibilitaVerticale(vertId) {
+  const visibilita = ls(KEYS.visibilita) || {};
+  visibilita[vertId] = !visibilita[vertId];
+  save(KEYS.visibilita, visibilita);
+  renderAdminVisibilita();
+  // Aggiorna la home se è visibile
+  if (document.getElementById('view-home').classList.contains('active')) renderHome();
+}
+
+function toggleVisibilitaServizio(vertId, idx) {
+  const serviziAll = ls(KEYS.servizi) || {};
+  const servizio   = (serviziAll[vertId] || [])[idx];
+  if (!servizio) return;
+  servizio.nascosto = !servizio.nascosto;
+  save(KEYS.servizi, serviziAll);
+
+  // Aggiorna la vista corrente
+  const sess    = ssGet(KEYS.session);
+  const isAdmin = sess && sess.ruolo === 'admin';
+  // Se la pagina verticale corrente è quella modificata, ri-renderizza
+  if (currentVertId === vertId && document.getElementById('view-verticale').classList.contains('active')) {
+    const vert = VERTICALI.find(v => v.id === vertId);
+    if (vert) renderServiziVerticale(vert, isAdmin);
+  }
+  renderAdminServizi();
+  renderAdminVisibilita();
+}
+
+function renderAdminVisibilita() {
+  const visibilita  = ls(KEYS.visibilita) || {};
+  const serviziAll  = ls(KEYS.servizi) || {};
+
+  // --- Verticali ---
+  const listVert = document.getElementById('visibilita-verticali-list');
+  if (listVert) {
+    listVert.innerHTML = '';
+    VERTICALI.forEach(vert => {
+      const nascosta = visibilita[vert.id] === true;
+      const row = document.createElement('div');
+      row.className = 'visib-row';
+      row.innerHTML = `
+        <div class="visib-row-info">
+          <div class="visib-row-name">${escHtml(vert.nome)}</div>
+          <div class="visib-row-meta">${nascosta ? '&#9888;&nbsp;Oscurata — non visibile ai consulenti' : '&#10003;&nbsp;Visibile ai consulenti'}</div>
+        </div>
+        <div class="toggle-vis-wrap">
+          <span class="toggle-vis-label" style="color:${nascosta ? '#c0392b' : 'var(--success)'};">${nascosta ? 'Oscurata' : 'Visibile'}</span>
+          <label class="toggle-vis">
+            <input type="checkbox" ${nascosta ? 'checked' : ''} onchange="toggleVisibilitaVerticale('${escAttr(vert.id)}')">
+            <span class="toggle-vis-slider"></span>
+          </label>
+        </div>`;
+      listVert.appendChild(row);
+    });
+  }
+
+  // --- Dropdown servizi ---
+  const sel = document.getElementById('admin-visib-verticale-select');
+  if (sel && sel.options.length === 0) {
+    VERTICALI.forEach(vert => {
+      const opt = document.createElement('option');
+      opt.value = vert.id;
+      opt.textContent = vert.nome;
+      sel.appendChild(opt);
+    });
+  }
+
+  renderVisibilitaServizi();
+}
+
+function renderVisibilitaServizi() {
+  const sel = document.getElementById('admin-visib-verticale-select');
+  if (!sel) return;
+  const vertId     = sel.value;
+  const serviziAll = ls(KEYS.servizi) || {};
+  const servizi    = serviziAll[vertId] || [];
+  const list       = document.getElementById('visibilita-servizi-list');
+  if (!list) return;
+  list.innerHTML   = '';
+
+  if (servizi.length === 0) {
+    list.innerHTML = '<div class="empty-state-note" style="display:block;padding:10px 0;">Nessun servizio in questa verticale.</div>';
+    return;
+  }
+
+  servizi.forEach((s, idx) => {
+    const row = document.createElement('div');
+    row.className = 'visib-row';
+    if (s.nascosto) row.style.opacity = '0.6';
+    row.innerHTML = `
+      <div class="visib-row-info">
+        <div class="visib-row-name">${escHtml(s.nome)}</div>
+        <div class="visib-row-meta">&#8364; ${formatEuro(s.prezzo)} &mdash; ${tipoServizioLabel(s.tipo)} &mdash; ${s.nascosto ? '&#9888;&nbsp;Nascosto ai consulenti' : '&#10003;&nbsp;Visibile ai consulenti'}</div>
+      </div>
+      <div class="toggle-vis-wrap">
+        <span class="toggle-vis-label" style="color:${s.nascosto ? '#c0392b' : 'var(--success)'};">${s.nascosto ? 'Nascosto' : 'Visibile'}</span>
+        <label class="toggle-vis">
+          <input type="checkbox" ${s.nascosto ? 'checked' : ''} onchange="toggleVisibilitaServizio('${escAttr(vertId)}',${idx})">
+          <span class="toggle-vis-slider"></span>
+        </label>
+      </div>`;
+    list.appendChild(row);
+  });
+}
 
 // =========================================================
 // AVVIO
