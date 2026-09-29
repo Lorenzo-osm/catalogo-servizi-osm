@@ -1363,24 +1363,22 @@ textarea.form-input { resize: vertical; }
     <!-- TAB ACCOUNT -->
     <div class="admin-section" id="admin-tab-account">
       <div class="card-panel">
-        <div class="card-panel-title">Modifica credenziali amministratore</div>
+        <div class="card-panel-title">Il tuo account amministratore</div>
+        <div style="font-size:0.8rem;opacity:0.7;margin-bottom:14px;">La password è quella del tuo accesso unico OSM: cambiandola qui cambia per tutti i portali.</div>
         <div class="alert alert-error" id="alert-acc-err"></div>
         <div class="alert alert-success" id="alert-acc-ok"></div>
-        <div class="form-group">
-          <label class="form-label">Password attuale (richiesta per confermare)</label>
-          <input type="password" id="acc-pwd-current" class="form-input" placeholder="Inserisci la password attuale">
-        </div>
-        <div class="divider"></div>
         <div class="form-group">
           <label class="form-label">Nome e Cognome &mdash; lascia vuoto per non modificare</label>
           <input type="text" id="acc-nome-new" class="form-input" placeholder="Nome e Cognome">
         </div>
+        <div class="divider"></div>
+        <input type="hidden" id="acc-email-new" value="">
         <div class="form-group">
-          <label class="form-label">Nuova email &mdash; lascia vuoto per non modificare</label>
-          <input type="email" id="acc-email-new" class="form-input" placeholder="nuova@osmpartnerbologna.it">
+          <label class="form-label">Password attuale (serve solo per cambiare password)</label>
+          <input type="password" id="acc-pwd-current" class="form-input" placeholder="Inserisci la password attuale">
         </div>
         <div class="form-group">
-          <label class="form-label">Nuova password &mdash; lascia vuoto per non modificare</label>
+          <label class="form-label">Nuova password &mdash; almeno 6 caratteri, lascia vuoto per non modificare</label>
           <input type="password" id="acc-pwd-new" class="form-input" placeholder="Nuova password">
         </div>
         <button class="btn btn-primary btn-sm" onclick="saveAccountAdmin()">Salva modifiche</button>
@@ -1473,6 +1471,7 @@ textarea.form-input { resize: vertical; }
 <!-- ===== FIREBASE ===== -->
 <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.8.1/firebase-auth-compat.js"></script>
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyDMwBTaewsaXajevMR3rpaKGKvAJ51iAfk",
@@ -1484,6 +1483,185 @@ textarea.form-input { resize: vertical; }
   };
   const _fbApp = firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
+</script>
+<script>
+/* ===================== ACCESSO OSM (Firebase Authentication) =====================
+   Accesso unico per tutti i portali OSM: i portali condividono lo stesso progetto
+   Firebase, quindi la stessa email e la stessa password valgono ovunque (come in
+   Clienti Fermi). Le password non sono più salvate nel database né scritte nel codice.
+   Migrazione automatica: al primo accesso con la vecchia password del portale,
+   l'account viene creato su Firebase Authentication e la password in chiaro
+   viene cancellata dal database del portale. */
+const _fbAuth = firebase.auth();
+_fbAuth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(function() {});
+let _fbAuthSecondaria = null;
+
+/* App "secondaria": serve per creare l'account di un'altra persona senza
+   disconnettere l'amministratore che lo sta creando. */
+function _authSecondaria() {
+  if (!_fbAuthSecondaria) {
+    const esistente = firebase.apps.find(function(a) { return a.name === 'AccessoOsmSecondaria'; });
+    const app = esistente || firebase.initializeApp(firebase.app().options, 'AccessoOsmSecondaria');
+    _fbAuthSecondaria = app.auth();
+    _fbAuthSecondaria.setPersistence(firebase.auth.Auth.Persistence.NONE).catch(function() {});
+  }
+  return _fbAuthSecondaria;
+}
+
+/* Restituisce l'utente Firebase collegato in questa scheda (o null) */
+function accessoOsmUtenteCorrente() {
+  return new Promise(function(resolve) {
+    let finito = false;
+    let stop = null;
+    const chiudi = function(u) {
+      if (finito) return;
+      finito = true;
+      // la risposta può arrivare prima che onAuthStateChanged abbia restituito stop: si stacca dopo
+      setTimeout(function() { if (stop) stop(); }, 0);
+      resolve(u);
+    };
+    stop = _fbAuth.onAuthStateChanged(chiudi, function() { chiudi(_fbAuth.currentUser); });
+    // rete lenta o assente: dopo 10 secondi si prosegue con quello che si sa
+    setTimeout(function() { chiudi(_fbAuth.currentUser); }, 10000);
+  });
+}
+
+const _ERRORI_CREDENZIALI = ['auth/invalid-credential', 'auth/invalid-login-credentials', 'auth/wrong-password', 'auth/user-not-found'];
+
+function messaggioErroreAccesso(e) {
+  const c = (e && e.code) || '';
+  if (_ERRORI_CREDENZIALI.indexOf(c) >= 0) return 'Email o password non corretti.';
+  if (c === 'auth/invalid-email') return 'Indirizzo email non valido.';
+  if (c === 'auth/too-many-requests') return 'Troppi tentativi falliti: attendi qualche minuto e riprova, oppure usa "Password dimenticata?".';
+  if (c === 'auth/network-request-failed') return 'Connessione assente: controlla la rete e riprova.';
+  if (c === 'auth/user-disabled') return 'Questo account è stato disattivato.';
+  if (c === 'auth/weak-password') return 'La password deve avere almeno 6 caratteri.';
+  return 'Operazione non riuscita (' + (c || (e && e.message) || 'errore sconosciuto') + ').';
+}
+
+/* Esegue l'accesso.
+   cercaPasswordLegacy(email): funzione async che restituisce la vecchia password in chiaro
+   ancora salvata nel portale per quell'email (o null), riletta dal database.
+   Restituisce { ok: true, migrato: bool } oppure { ok: false, messaggio: '...' } */
+async function accessoOsmLogin(email, password, cercaPasswordLegacy) {
+  try {
+    await _fbAuth.signInWithEmailAndPassword(email, password);
+    return { ok: true, migrato: false };
+  } catch (e) {
+    if (_ERRORI_CREDENZIALI.indexOf(e.code) < 0) return { ok: false, messaggio: messaggioErroreAccesso(e) };
+  }
+  // Credenziali Firebase non valide: prova con la vecchia password del portale (migrazione)
+  let legacy = null;
+  try { legacy = await cercaPasswordLegacy(email); } catch (e) { legacy = null; }
+  if (!legacy || legacy !== password) return { ok: false, messaggio: 'Email o password non corretti.' };
+  try {
+    await _fbAuth.createUserWithEmailAndPassword(email, password);
+    return { ok: true, migrato: true };
+  } catch (e) {
+    if (e.code === 'auth/email-already-in-use') {
+      return { ok: false, messaggio: 'Per questa email esiste già l\'accesso unico OSM (lo stesso di Clienti Fermi e degli altri portali): entra con quella password. Se non la ricordi, clicca "Password dimenticata?".' };
+    }
+    if (e.code === 'auth/weak-password') {
+      // Vecchia password troppo corta per Firebase (minimo 6 caratteri): si crea l'account
+      // con una password casuale e si invia l'email per sceglierne una nuova.
+      try {
+        const casuale = Array.from(crypto.getRandomValues(new Uint32Array(4))).join('-') + 'Aa!';
+        await _authSecondaria().createUserWithEmailAndPassword(email, casuale);
+        await _authSecondaria().signOut();
+        await _fbAuth.sendPasswordResetEmail(email);
+        return { ok: false, messaggio: 'La tua vecchia password era troppo corta per il nuovo accesso sicuro. Ti abbiamo inviato un\'email per sceglierne una nuova (almeno 6 caratteri): poi rientra con quella.' };
+      } catch (e2) {
+        return { ok: false, messaggio: messaggioErroreAccesso(e2) };
+      }
+    }
+    return { ok: false, messaggio: messaggioErroreAccesso(e) };
+  }
+}
+
+async function accessoOsmLogout() {
+  try { await _fbAuth.signOut(); } catch (e) {}
+}
+
+/* Crea l'account di accesso di un'altra persona.
+   Restituisce { ok: true, giaEsistente: bool } oppure { ok: false, messaggio } */
+async function accessoOsmCreaAccount(email, password) {
+  try {
+    await _authSecondaria().createUserWithEmailAndPassword(email, password);
+    await _authSecondaria().signOut();
+    await accessoOsmAbilita(email);
+    return { ok: true, giaEsistente: false };
+  } catch (e) {
+    if (e.code === 'auth/email-already-in-use') { await accessoOsmAbilita(email); return { ok: true, giaEsistente: true }; }
+    return { ok: false, messaggio: messaggioErroreAccesso(e) };
+  }
+}
+
+/* Elenco delle email autorizzate a usare i dati dei portali (accesso-osm/elenco).
+   Le regole di sicurezza del database fanno entrare solo chi è in questo elenco:
+   avere un account Firebase non basta, perché chiunque può crearsene uno.
+   Si aggiunge qui ogni volta che un amministratore crea un account. */
+async function accessoOsmAbilita(email) {
+  try {
+    await db.collection('accesso-osm').doc('elenco').set({ utenti: { [(email || '').toLowerCase()]: true } }, { merge: true });
+    return true;
+  } catch (e) {
+    console.error('[Accesso OSM] Errore aggiornamento elenco accessi:', e);
+    return false;
+  }
+}
+
+/* Cambia la password dell'utente collegato. Restituisce null se ok, altrimenti il messaggio di errore. */
+async function accessoOsmCambiaPassword(attuale, nuova) {
+  const u = _fbAuth.currentUser;
+  if (!u) return 'Sessione scaduta: esci e rientra, poi riprova.';
+  if (!nuova || nuova.length < 6) return 'La nuova password deve avere almeno 6 caratteri.';
+  try {
+    await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email, attuale));
+  } catch (e) {
+    return _ERRORI_CREDENZIALI.indexOf(e.code) >= 0 ? 'Password attuale non corretta.' : messaggioErroreAccesso(e);
+  }
+  try {
+    await u.updatePassword(nuova);
+    return null;
+  } catch (e) {
+    return messaggioErroreAccesso(e);
+  }
+}
+
+async function accessoOsmInviaReset(email) {
+  if (!email) return 'Scrivi prima la tua email nel campo qui sopra.';
+  try {
+    await _fbAuth.sendPasswordResetEmail(email);
+    return null;
+  } catch (e) {
+    return messaggioErroreAccesso(e);
+  }
+}
+
+/* Aggiunge sotto al pulsante di accesso il link "Password dimenticata?" */
+function accessoOsmAggiungiLinkReset(idInputEmail, elementoDopo) {
+  if (!elementoDopo || document.getElementById('accesso-osm-reset')) return;
+  const box = document.createElement('div');
+  box.id = 'accesso-osm-reset';
+  box.style.cssText = 'margin-top:12px;text-align:center;font-size:0.82rem;';
+  const link = document.createElement('a');
+  link.href = '#';
+  link.textContent = 'Password dimenticata?';
+  link.style.cssText = 'color:inherit;opacity:0.8;text-decoration:underline;cursor:pointer;';
+  const msg = document.createElement('div');
+  msg.style.cssText = 'margin-top:8px;line-height:1.45;';
+  link.onclick = async function(ev) {
+    ev.preventDefault();
+    const campo = document.getElementById(idInputEmail);
+    const email = campo ? campo.value.trim().toLowerCase() : '';
+    msg.textContent = 'Invio in corso...';
+    const errore = await accessoOsmInviaReset(email);
+    msg.textContent = errore || ('Se ' + email + ' è registrata, riceverai a breve un\'email con il link per scegliere una nuova password (controlla anche lo spam). La nuova password varrà per tutti i portali OSM.');
+  };
+  box.appendChild(link);
+  box.appendChild(msg);
+  elementoDopo.insertAdjacentElement('afterend', box);
+}
 </script>
 
 <script>
@@ -1589,13 +1767,95 @@ let deleteCallback = null;
 // =========================================================
 // STORAGE HELPERS
 // =========================================================
+/* ===================== SALVATAGGIO SICURO =====================
+   1. Non salva MAI su Firestore se il caricamento iniziale non è riuscito
+      (prima, con la rete assente, il portale ripartiva dai valori vuoti di default
+      e li scriveva sopra i dati veri: es. l'elenco consulenti azzerato).
+   2. Se un salvataggio fallisce mostra un banner rosso fisso con "Riprova".
+   3. Avvisa prima di chiudere la pagina se un salvataggio è in corso o è fallito. */
+let _datiCaricati = false;
+let _salvataggiInCorso = 0;
+let _salvataggioFallito = false;
+let _riprovaSalvataggio = null;
+
+function _mostraBannerSalvataggio(tipo, testo, conRiprova) {
+  let b = document.getElementById('banner-salvataggio');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'banner-salvataggio';
+    b.setAttribute('role', 'alert');
+    b.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:2147483000;'
+      + 'max-width:min(640px,calc(100vw - 32px));display:flex;align-items:center;gap:12px;flex-wrap:wrap;'
+      + 'padding:12px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);'
+      + 'font:600 14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;';
+    document.body.appendChild(b);
+  }
+  const colori = tipo === 'avviso'
+    ? { bg: '#fff4e0', fg: '#8a4b00', bordo: '#e0a040' }
+    : { bg: '#fdecea', fg: '#a4281b', bordo: '#d9534f' };
+  b.style.background = colori.bg;
+  b.style.color = colori.fg;
+  b.style.border = '2px solid ' + colori.bordo;
+  b.innerHTML = '';
+  const t = document.createElement('span');
+  t.style.flex = '1';
+  t.textContent = (tipo === 'avviso' ? '⚠️ ' : '⛔ ') + testo;
+  b.appendChild(t);
+  if (conRiprova) {
+    const r = document.createElement('button');
+    r.textContent = 'Riprova';
+    r.style.cssText = 'background:' + colori.bordo + ';color:#fff;border:none;border-radius:8px;padding:7px 14px;font:inherit;cursor:pointer;';
+    r.onclick = function() { if (_riprovaSalvataggio) _riprovaSalvataggio(); };
+    b.appendChild(r);
+  }
+  const x = document.createElement('button');
+  x.textContent = '✕';
+  x.title = 'Chiudi';
+  x.style.cssText = 'background:none;border:none;color:inherit;font:inherit;cursor:pointer;padding:4px 6px;';
+  x.onclick = function() { b.remove(); };
+  b.appendChild(x);
+}
+
+function _nascondiBannerSalvataggio() {
+  const b = document.getElementById('banner-salvataggio');
+  if (b) b.remove();
+}
+
+async function salvataggioSicuro(scrittura, _nonUsato, riprova) {
+  if (riprova) _riprovaSalvataggio = riprova;
+  if (!_datiCaricati) {
+    _mostraBannerSalvataggio('errore', 'I dati non sono stati caricati dal database: per sicurezza le modifiche NON vengono salvate. Ricarica la pagina.', false);
+    return false;
+  }
+  _salvataggiInCorso++;
+  try {
+    await scrittura();
+    if (_salvataggioFallito) { _salvataggioFallito = false; _nascondiBannerSalvataggio(); }
+    return true;
+  } catch(e) {
+    console.error('[Salvataggio] Errore:', e);
+    _salvataggioFallito = true;
+    _mostraBannerSalvataggio('errore', 'Salvataggio NON riuscito: le ultime modifiche non sono state salvate. Controlla la connessione e premi Riprova.', true);
+    return false;
+  } finally {
+    _salvataggiInCorso--;
+  }
+}
+
+window.addEventListener('beforeunload', function(e) {
+  if (_salvataggiInCorso > 0 || _salvataggioFallito) { e.preventDefault(); e.returnValue = ''; }
+});
+
 function ls(key)          { try { const v = localStorage.getItem(key);   return v ? JSON.parse(v) : null; } catch(e) { return null; } }
 function save(key, val)   {
   localStorage.setItem(key, JSON.stringify(val));
   // Sincronizza anche su Firestore (tranne la sessione, che resta locale al singolo browser)
   if (key !== KEYS.session) {
-    db.collection('portali').doc('catalogo-servizi').set({ [key]: val }, { merge: true })
-      .catch(function(e) { console.error('[Catalogo] Errore salvataggio Firestore:', e); });
+    salvataggioSicuro(
+      () => db.collection('portali').doc('catalogo-servizi').set({ [key]: val }, { merge: true }),
+      null,
+      () => save(key, ls(key))
+    );
   }
 }
 
@@ -1604,6 +1864,7 @@ function save(key, val)   {
 async function caricaDaFirestore() {
   try {
     const snap = await db.collection('portali').doc('catalogo-servizi').get();
+    _datiCaricati = true; // lettura riuscita: da qui in poi è sicuro salvare
     if (snap.exists) {
       const data = snap.data();
       Object.values(KEYS).forEach(function(k) {
@@ -1623,10 +1884,10 @@ function ssSave(key, val) { sessionStorage.setItem(key, JSON.stringify(val)); }
 // =========================================================
 function initStorage() {
   if (!ls(KEYS.admin)) {
+    // Profilo admin di default, SENZA password: l'accesso passa da Firebase Authentication (Accesso OSM)
     save(KEYS.admin, {
       nome:     'Lorenzo Gorgò',
-      email:    'l.gorgo@osmpartnerbologna.it',
-      password: 'Dybalronaldo055!'
+      email:    'l.gorgo@osmpartnerbologna.it'
     });
   } else {
     const admin = ls(KEYS.admin);
@@ -1690,32 +1951,61 @@ function initStorage() {
 // =========================================================
 // AUTH — LOGIN / LOGOUT
 // =========================================================
-function doLogin() {
+/* Profilo del portale collegato a un'email: admin oppure consulente */
+function _profiloPerEmail(email) {
+  const e = (email || '').toLowerCase();
+  const admin = ls(KEYS.admin);
+  if (admin && (admin.email || '').toLowerCase() === e) {
+    return { dati: admin, chiave: KEYS.admin, sessione: { ruolo: 'admin', email: admin.email, nome: admin.nome } };
+  }
+  const consulenti = ls(KEYS.consulenti) || [];
+  const c = consulenti.find(x => (x.email || '').toLowerCase() === e);
+  if (c) return { dati: c, chiave: KEYS.consulenti, elenco: consulenti, sessione: { ruolo: 'consulente', email: c.email, nome: c.nome } };
+  return null;
+}
+
+/* Dopo un accesso Firebase riuscito la vecchia password in chiaro non serve più: si cancella */
+function _rimuoviPasswordInChiaro(email) {
+  const p = _profiloPerEmail(email);
+  if (!p || p.dati.password === undefined) return;
+  delete p.dati.password;
+  save(p.chiave, p.chiave === KEYS.admin ? p.dati : p.elenco);
+}
+
+async function doLogin() {
   const email    = document.getElementById('login-email').value.trim().toLowerCase();
   const password = document.getElementById('login-password').value;
   const errEl    = document.getElementById('login-error');
+  const mostraErrore = function(t) { errEl.textContent = t; errEl.classList.add('show'); };
   errEl.classList.remove('show');
 
-  if (!email || !password) { errEl.classList.add('show'); return; }
+  if (!email || !password) { mostraErrore('Inserisci email e password.'); return; }
 
-  // Controlla admin
-  const admin = ls(KEYS.admin);
-  if (email === admin.email.toLowerCase() && password === admin.password) {
-    ssSave(KEYS.session, { ruolo: 'admin', email: admin.email, nome: admin.nome });
-    avviaSessione();
+  const esito = await accessoOsmLogin(email, password, async function(em) {
+    await caricaDaFirestore(); // rilegge gli account aggiornati
+    const p = _profiloPerEmail(em);
+    return p && p.dati.password ? p.dati.password : null;
+  });
+  if (!esito.ok) { mostraErrore(esito.messaggio); return; }
+
+  // Dopo l'accesso si leggono i dati (con il database protetto, prima non si potrebbe)
+  await caricaDaFirestore();
+  if (!_datiCaricati) {
+    await accessoOsmLogout();
+    mostraErrore('Impossibile collegarsi al database: controlla la connessione e riprova.');
+    return;
+  }
+  initStorage();
+  const profilo = _profiloPerEmail(email);
+  if (!profilo) {
+    await accessoOsmLogout();
+    mostraErrore('Il tuo accesso OSM è valido, ma non sei abilitato al Catalogo Servizi: chiedi all\'amministratore di aggiungerti.');
     return;
   }
 
-  // Controlla consulenti
-  const consulenti = ls(KEYS.consulenti) || [];
-  const cons = consulenti.find(c => c.email.toLowerCase() === email && c.password === password);
-  if (cons) {
-    ssSave(KEYS.session, { ruolo: 'consulente', email: cons.email, nome: cons.nome });
-    avviaSessione();
-    return;
-  }
-
-  errEl.classList.add('show');
+  // Il portale non cancella nulla da solo: le vecchie password si tolgono solo con la pagina di preparazione Accesso OSM
+  ssSave(KEYS.session, profilo.sessione);
+  avviaSessione();
 }
 
 function avviaSessione() {
@@ -1730,8 +2020,11 @@ function avviaSessione() {
   goHome();
 }
 
-function doLogout() {
+async function doLogout() {
   sessionStorage.removeItem(KEYS.session);
+  // Toglie dal browser la copia dei dati del portale (su un PC condiviso restava leggibile)
+  Object.values(KEYS).forEach(function(k) { try { localStorage.removeItem(k); } catch(e) {} });
+  await accessoOsmLogout();
   location.reload();
 }
 
@@ -2104,7 +2397,7 @@ function renderAdminConsulenti() {
   });
 }
 
-function addConsulente() {
+async function addConsulente() {
   const nome     = document.getElementById('new-cons-nome').value.trim();
   const email    = document.getElementById('new-cons-email').value.trim().toLowerCase();
   const password = document.getElementById('new-cons-password').value;
@@ -2115,7 +2408,7 @@ function addConsulente() {
   if (!nome)         { showAlert(errEl, 'Inserisci nome e cognome.'); return; }
   if (!email || !password) { showAlert(errEl, 'Compila sia email che password.'); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showAlert(errEl, 'Formato email non valido.'); return; }
-  if (password.length < 4) { showAlert(errEl, 'La password deve avere almeno 4 caratteri.'); return; }
+  if (password.length < 6) { showAlert(errEl, 'La password deve avere almeno 6 caratteri.'); return; }
 
   const admin = ls(KEYS.admin);
   if (email === admin.email.toLowerCase()) {
@@ -2127,14 +2420,20 @@ function addConsulente() {
     showAlert(errEl, "Email gia' registrata."); return;
   }
 
-  consulenti.push({ nome, email, password });
+  // Crea l'accesso su Firebase Authentication (la password non viene salvata nel portale)
+  const creazione = await accessoOsmCreaAccount(email, password);
+  if (!creazione.ok) { showAlert(errEl, creazione.messaggio); return; }
+
+  consulenti.push({ nome, email });
   save(KEYS.consulenti, consulenti);
 
   document.getElementById('new-cons-nome').value     = '';
   document.getElementById('new-cons-email').value    = '';
   document.getElementById('new-cons-password').value = '';
   renderAdminConsulenti();
-  showAlert(okEl, 'Consulente aggiunto con successo.');
+  showAlert(okEl, creazione.giaEsistente
+    ? 'Consulente aggiunto. Ha già l\'accesso unico OSM: entrerà con la password che usa già negli altri portali.'
+    : 'Consulente aggiunto con successo.');
 }
 
 function deleteConsulente(idx) {
@@ -2744,7 +3043,7 @@ function deleteServizioPrompt(vertId, idx) {
 // =========================================================
 // ADMIN — ACCOUNT
 // =========================================================
-function saveAccountAdmin() {
+async function saveAccountAdmin() {
   const currentPwd = document.getElementById('acc-pwd-current').value;
   const newNome    = document.getElementById('acc-nome-new').value.trim();
   const newEmail   = document.getElementById('acc-email-new').value.trim().toLowerCase();
@@ -2754,22 +3053,20 @@ function saveAccountAdmin() {
   hideAlerts([errEl, okEl]);
 
   const admin = ls(KEYS.admin);
-  if (!currentPwd || currentPwd !== admin.password) {
-    showAlert(errEl, 'Password attuale non corretta.'); return;
+  if (!newNome && !newPwd) {
+    showAlert(errEl, 'Inserisci almeno una modifica (nome o password).'); return;
   }
-  if (!newNome && !newEmail && !newPwd) {
-    showAlert(errEl, 'Inserisci almeno una modifica (nome, email o password).'); return;
+  if (newEmail && newEmail !== (admin.email || '').toLowerCase()) {
+    showAlert(errEl, 'Il cambio email non è disponibile: l\'email è il tuo accesso unico a tutti i portali OSM.'); return;
   }
-  if (newEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
-    showAlert(errEl, 'Formato email non valido.'); return;
-  }
-  if (newPwd && newPwd.length < 4) {
-    showAlert(errEl, 'La nuova password deve avere almeno 4 caratteri.'); return;
+  if (newPwd) {
+    if (!currentPwd) { showAlert(errEl, 'Inserisci la password attuale per confermare.'); return; }
+    // Cambio password su Firebase Authentication: vale per tutti i portali OSM
+    const errore = await accessoOsmCambiaPassword(currentPwd, newPwd);
+    if (errore) { showAlert(errEl, errore); return; }
   }
 
-  if (newNome)  admin.nome     = newNome;
-  if (newEmail) admin.email    = newEmail;
-  if (newPwd)   admin.password = newPwd;
+  if (newNome) admin.nome = newNome;
   save(KEYS.admin, admin);
 
   // Aggiorna sessione
@@ -4263,16 +4560,30 @@ function aggiornaSottocatSelectPerVert(vertId) {
 // AVVIO
 // =========================================================
 (async function avvio() {
-  await caricaDaFirestore();
-  initStorage();
-
   const loginBtn = document.getElementById('login-btn');
+  accessoOsmAggiungiLinkReset('login-email', loginBtn);
+
+  // La sessione vale solo se c'è davvero un utente collegato su Firebase Authentication
+  // (prima bastava scrivere un valore nel browser per risultare "admin").
+  // I dati si caricano solo DOPO un accesso valido.
+  const utenteFirebase = await accessoOsmUtenteCorrente();
+  let profilo = null;
+  if (utenteFirebase) {
+    await caricaDaFirestore();
+    if (_datiCaricati) {
+      initStorage();
+      profilo = _profiloPerEmail(utenteFirebase.email);
+    }
+  }
+
   if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Accedi'; }
 
-  // Controlla sessione attiva
-  const sessAttiva = ssGet(KEYS.session);
-  if (sessAttiva) {
+  if (profilo) {
+    // Ruolo sempre riletto dal profilo, mai dal browser
+    ssSave(KEYS.session, profilo.sessione);
     avviaSessione();
+  } else {
+    sessionStorage.removeItem(KEYS.session);
   }
 })();
 </script>
